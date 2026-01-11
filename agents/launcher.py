@@ -4,7 +4,6 @@ MIT License
 Copyright (c) 2026 starttown
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-
 """
 
 import sys
@@ -27,30 +26,32 @@ ENV["PYTHONUTF8"] = "1"
 
 # ================= 路径解析核心逻辑 =================
 def resolve_openagents_path():
-    """解析 openagents.exe 的路径。"""
-    python_dir = Path(sys.executable).parent.resolve()
+    """解析 openagents 的路径（Linux版本）。"""
+    # 在Linux中，通常可执行文件在/usr/local/bin或~/.local/bin
+    possible_paths = [
+        "/usr/local/bin/openagents",
+        os.path.expanduser("~/.local/bin/openagents"),
+        "/usr/bin/openagents"
+    ]
     
-    # 尝试 1: 与 python.exe 同级
-    oa_path = python_dir / "openagents.exe"
-    if oa_path.exists():
-        return str(oa_path)
+    for path in possible_paths:
+        if os.path.exists(path) and os.path.isfile(path):
+            return path
     
-    # 尝试 2: Scripts 文件夹下
-    oa_path = python_dir / "Scripts" / "openagents.exe"
-    if oa_path.exists():
-        return str(oa_path)
-    
-    # 尝试 3: 上一级
-    oa_path = python_dir.parent / "openagents.exe"
-    if oa_path.exists():
-        return str(oa_path)
+    # 检查PATH环境变量
+    for path in os.environ.get("PATH", "").split(os.pathsep):
+        full_path = os.path.join(path, "openagents")
+        if os.path.exists(full_path) and os.path.isfile(full_path):
+            return full_path
     
     raise FileNotFoundError(
-        f"找不到 openagents.exe。\n"
+        f"找不到 openagents 可执行文件。\n"
         f"已在以下位置搜索:\n"
-        f"1. {python_dir}\n"
-        f"2. {python_dir / 'Scripts'}\n"
-        f"请确认 openagents.exe 是否已安装。"
+        f"1. /usr/local/bin/openagents\n"
+        f"2. ~/.local/bin/openagents\n"
+        f"3. /usr/bin/openagents\n"
+        f"4. PATH 环境变量中的路径\n"
+        f"请确认 openagents 是否已安装。"
     )
 
 # 全局路径变量
@@ -92,7 +93,6 @@ class ProcessManager:
             cwd=str(target_dir), 
             stdout=open(log_file, "w", encoding='utf-8'),
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
             env=ENV
         )
         self.processes["network"] = proc
@@ -117,7 +117,6 @@ class ProcessManager:
             cwd=str(SCRIPT_DIR),
             stdout=open(log_file, "w", encoding='utf-8'),
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
             env=ENV
         )
         self.processes[f"agent_{yaml_file.stem}"] = proc
@@ -142,7 +141,6 @@ class ProcessManager:
             cwd=str(SCRIPT_DIR),
             stdout=open(log_file, "w", encoding='utf-8'),
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
             env=ENV
         )
         self.processes[f"script_{target_script.stem}"] = proc
@@ -163,7 +161,6 @@ class ProcessManager:
             cwd=str(SCRIPT_DIR), 
             stdout=open(log_file, "w", encoding='utf-8'),
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW,
             env=ENV
         )
         self.processes["studio"] = proc
@@ -208,8 +205,9 @@ signal.signal(signal.SIGINT, cleanup)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python launcher.py <all|studio>")
-        print("  all     - 启动 Network, Connector, Agent 和 Studio")
+        print("Usage: python launcher.py <all|core|studio>")
+        print("  all     - 启动 Network, 所有Agents (包括学生) 和 Studio")
+        print("  core    - 启动 Network, 核心Agents (无学生) 和 Studio")
         print("  studio  - 仅启动 Studio")
         sys.exit(1)
     
@@ -223,26 +221,98 @@ if __name__ == "__main__":
         print(f"[Info] Log Dir: {LOG_DIR}")
         
         if cmd_type == "all":
-            print("-" * 40)
+            print("=" * 60)
+            print("🚀 启动完整系统 - 包括旅行指南和哈利波特学院agents")
+            print("=" * 60)
+            
             # 1. 启动网络
+            print("\n📡 [1/8] 启动网络...")
             manager.start_network()
-            print(f"[Action] 已启动 Network -> {NETWORK_DIR}")
+            print(f"✅ Network 已启动 -> {NETWORK_DIR}")
             
-            # 2. 启动 Travel Guide Agent (YAML)
+            # 2. 启动 Travel Guide Agent
+            print("\n🗺️  [2/8] 启动旅行指南 Agent...")
             manager.start_agent("travel-guide-agent.yaml")
-            print(f"[Action] 已启动 Agent -> travel-guide-agent.yaml")
+            print(f"✅ Travel Guide Agent 已启动 -> travel-guide-agent.yaml")
             
-            # 3. 启动 Weather Connector (Python)
+            # 3. 启动 Weather Connector
+            print("\n🌤️  [3/8] 启动天气连接器...")
             manager.start_script("weather_connector.py")
-            print(f"[Action] 已启动 Script -> weather_connector.py")
+            print(f"✅ Weather Connector 已启动 -> weather_connector.py")
+            
+            # 4. 启动四个哈利波特学院学生agents
+            print("\n🏰 [4/8] 启动哈利波特学院学生agents...")
+            
+            print("  🦁 格兰芬多学生...")
+            manager.start_agent("gryffindor-student.yaml")
+            print("  ✅ Gryffindor 学生已启动")
+            
+            print("  🐍 斯莱特林学生...")
+            manager.start_agent("slytherin-student.yaml")
+            print("  ✅ Slytherin 学生已启动")
+            
+            print("  🦅 拉文克劳学生...")
+            manager.start_agent("ravenclaw-student.yaml")
+            print("  ✅ Ravenclaw 学生已启动")
+            
+            print("  🦡 赫奇帕奇学生...")
+            manager.start_agent("hufflepuff-student.yaml")
+            print("  ✅ Hufflepuff 学生已启动")
+            
+            # 5. 启动 Studio
+            print("\n🎨 [8/8] 启动 Studio...")
+            manager.start_studio()
+            print(f"✅ Studio 已启动")
+            
+            print("\n" + "=" * 60)
+            print("🎉 所有Agents已启动！系统正在守护中...")
+            print("=" * 60)
+            print("\n📝 使用方式:")
+            print("  • 使用 travel_sender.py 发送旅游指南请求")
+            print("  • 四个学院学生将根据各自的特质提供旅行建议")
+            print("  • Studio 可视化界面: http://localhost:xxxx")
+            print("\n🏰 哈利波特学院特质:")
+            print("  🦁 格兰芬多: 勇敢冒险，面对挑战")
+            print("  🐍 斯莱特林: 战略规划，高效优雅")
+            print("  🦅 拉文克劳: 学习成长，文化探索")
+            print("  🦡 赫奇帕奇: 温馨安全，友善包容")
+            print("\n按 Ctrl+C 停止所有服务")
+            print("=" * 60)
+
+        elif cmd_type == "core":
+            print("=" * 60)
+            print("🚀 启动核心系统 - 仅包括旅行指南Agent和天气连接器")
+            print("=" * 60)
+            
+            # 1. 启动网络
+            print("\n📡 [1/4] 启动网络...")
+            manager.start_network()
+            print(f"✅ Network 已启动 -> {NETWORK_DIR}")
+            
+            # 2. 启动 Travel Guide Agent
+            print("\n🗺️  [2/4] 启动旅行指南 Agent...")
+            manager.start_agent("travel-guide-agent.yaml")
+            print(f"✅ Travel Guide Agent 已启动 -> travel-guide-agent.yaml")
+            
+            # 3. 启动 Weather Connector
+            print("\n🌤️  [3/4] 启动天气连接器...")
+            manager.start_script("weather_connector.py")
+            print(f"✅ Weather Connector 已启动 -> weather_connector.py")
             
             # 4. 启动 Studio
+            print("\n🎨 [4/4] 启动 Studio...")
             manager.start_studio()
-            print(f"[Action] 已启动 Studio")
+            print(f"✅ Studio 已启动")
             
-            print("-" * 40)
-            print("[Manager] 所有程序已启动，守护中...")
-            print("[Manager] 使用 travel_sender.py 发送旅游指南请求")
+            print("\n" + "=" * 60)
+            print("🎉 核心系统已启动！")
+            print("=" * 60)
+            print("\n📝 使用方式:")
+            print("  • 使用 travel_sender.py 发送旅游指南请求")
+            print("  • Studio 可视化界面: http://localhost:xxxx")
+            print("  • 注意: 学院学生Agents未启动")
+            print("\n按 Ctrl+C 停止所有服务")
+            print("=" * 60)
             
         elif cmd_type == "studio":
             print("-" * 40)
@@ -251,7 +321,7 @@ if __name__ == "__main__":
             print("-" * 40)
             print("[Manager] Studio 已启动，守护中...")
         else:
-            print(f"未知命令: {cmd_type}，目前支持 'all', 'studio'")
+            print(f"未知命令: {cmd_type}，目前支持 'all', 'core', 'studio'")
             sys.exit(1)
         
         # 输出状态给 Tauri
@@ -269,3 +339,4 @@ if __name__ == "__main__":
         print(json.dumps({"error": str(e)}, ensure_ascii=False))
         print("<<<END_INFO>>>")
         sys.exit(1)
+

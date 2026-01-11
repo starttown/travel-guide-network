@@ -1,6 +1,7 @@
 # Travel Guide Workspace
 
-An OpenAgents network for intelligent travel planning based on real-time weather data.
+An OpenAgents network that generates travel advice based on real-time weather data. It features a standard travel guide agent and four unique Hogwarts-themed student agents (Gryffindor, Slytherin, Ravenclaw, Hufflepuff) that analyze the same data from different perspectives.
+
 
 ## Overview
 
@@ -11,36 +12,38 @@ This workspace contains a travel guide system that:
 
 ## Architecture
 
-Client (travel_sender.py)
-↓ HTTP POST
-Weather Connector (weather_connector.py)
-↓ API Call
-Open-Meteo API
-↓ Weather Data
-Travel Guide Agent (travel-guide-agent.yaml)
-↓ Travel Guide
-Message Channel: travel-guide-stream
+flowchart LR
+  C[travel_sender]
+  C --> A[weather_connector]
+  A --> A1[travel-guide-agent]
+  A --> A2[gryffindor-student]
+  A --> A3[slytherin-student]
+  A --> A4[hufflepuff-student]
+  A --> A5[ravenclaw-student]
 
 
 ## Agents
 
 | Agent | Type | Description |
 |-------|------|-------------|
-| `weather-connector` | Python (Worker) | HTTP server that receives travel requests, fetches weather data, and posts to channel |
-| `travel-guide` | YAML (Collaborator) | LLM-powered agent that generates comprehensive travel guides based on weather |
+| `weather-connector` | Python Worker | Receives HTTP requests, fetches data from Open-Meteo, and publishes to the channel. |
+| `travel-guide` | YAML Collaborator | Provides professional, practical travel advice based on weather. |
+| `gryffindor-student` | YAML Collaborator | Focuses on **bravery** and adventure activities. |
+| `slytherin-student` | YAML Collaborator | Focuses on **strategy**, efficiency, and elegant planning. |
+| `ravenclaw-student` | YAML Collaborator | Focuses on **wisdom**, museums, and culture. |
+| `hufflepuff-student` | YAML Collaborator | Focuses on **kindness**, comfort, and family-friendly activities. |
 
 ## Quick Start
 
-### 1. Start the Network
-
-bash
-openagents network start .
-
-
-### 2. Launch All Components
+### 1. Launch All Components
 
 bash
 python launcher.py all
+
+Or start only core components (Network, Connector, Guide Agent, Studio)
+
+bash
+python launcher.py core
 
 
 This will start:
@@ -49,13 +52,8 @@ This will start:
 - Travel Guide Agent
 - Studio Web Interface
 
-### 3. Access Studio
 
-Open your browser to:
-- **http://localhost:8700/studio/** - Studio web interface
-- **http://localhost:8700/mcp** - MCP protocol endpoint
-
-### 4. Send Travel Request
+### 2. Send Travel Request
 
 Use the sender script:
 

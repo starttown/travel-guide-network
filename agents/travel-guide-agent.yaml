@@ -60,11 +60,20 @@ config:
   triggers:
     - event: "thread.channel_message.notification"
       instruction: |
-        A weather data JSON has been posted.
-        1. Parse the JSON.
-        2. Generate the travel guide following the STRICT structure.
-        3. Post the result back to the channel.
-
+        A message has been posted.
+        
+        # 关键判断：只处理 weather-connector 发的消息
+        Check who sent the message (source_id in the event context).
+        
+        IF source is "weather-connector":
+            1. Parse the JSON weather data from the message text.
+            2. Generate the travel guide following the STRICT structure in your system instruction.
+            3. Post the result back to the channel.
+            4. finish()
+            
+        ELSE:
+            # 忽略其他所有人的消息（包括学生们的回复）
+            finish()
 mods:
   - name: "openagents.mods.workspace.messaging"
     enabled: true
