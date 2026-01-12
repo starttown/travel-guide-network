@@ -11,7 +11,7 @@ This workspace contains a travel guide system that:
 - Uses LLM to generate personalized travel recommendations
 
 ## Architecture
-
+```mermaid
 flowchart LR
   C[travel_sender]
   C --> A[weather_connector]
@@ -20,7 +20,7 @@ flowchart LR
   A --> A3[slytherin-student]
   A --> A4[hufflepuff-student]
   A --> A5[ravenclaw-student]
-
+```
 
 ## Agents
 
