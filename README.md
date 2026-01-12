@@ -3,8 +3,7 @@
 An OpenAgents network that generates travel advice based on real-time weather data. It features a standard travel guide agent and four unique Hogwarts-themed student agents (Gryffindor, Slytherin, Ravenclaw, Hufflepuff) that analyze the same data from different perspectives.
 
 
-
-【来自霍格沃茨的出行计划】 https://www.bilibili.com/video/BV0ti6ZBLEyh/?share_source=copy_web&vd_source=e00672c548e4f21dfbdee9a548e0e5df
+https://www.bilibili.com/video/BV1ti6ZBLEyh/?pop_share=1&spm_id_from=333.40164.0.0&vd_source=eb3f3277e676e4e60b5000d6466252b2
 
 ## Overview
 
