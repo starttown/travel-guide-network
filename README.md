@@ -37,14 +37,15 @@ flowchart LR
 
 ### 1. Launch All Components
 
-bash
+```bash
 python launcher.py all
+```
 
 Or start only core components (Network, Connector, Guide Agent, Studio)
 
-bash
+```bash
 python launcher.py core
-
+```
 
 This will start:
 - Network (ports 8700/8600)
@@ -57,8 +58,7 @@ This will start:
 
 Use the sender script:
 
-bash
-
+```bash
 Get guide for today
 python travel_sender.py Beijing
 
@@ -71,7 +71,7 @@ python travel_sender.py Shanghai 2
 Get guide for specific date
 python travel_sender.py Tokyo 2026-01-20
 
-
+```
 ## Configuration
 
 - **Network Port:** 8700 (HTTP), 8600 (gRPC)
@@ -104,11 +104,12 @@ To access admin features in Studio:
 Send travel guide request to Weather Connector.
 
 **Request:**
-json
+```json
 {
 “city”: “Beijing”,
 “date”: “1”
 }
+```
 
 
 **Parameters:**
@@ -119,11 +120,12 @@ json
   - Default: today
 
 **Response:**
-json
+```json
 {
 “status”: “accepted”,
 “message”: “Processing guide request…”
 }
+```
 
 
 ## Date Offsets
