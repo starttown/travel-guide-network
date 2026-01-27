@@ -28,38 +28,39 @@ jobs:  # 任务定义
         run: choco install nsis -y  # 使用chocolatey安装
 
       - name: Bundle Python environment  # 打包Python环境
-        run: |  # 执行多行命令
-          $env:VENV = "venv"  # 设置虚拟环境变量
-          python -m venv $env:VENV  # 创建虚拟环境
-          & "$env:VENV/Scripts/pip" install -r requirements.txt  # 安装依赖
-          & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt  # 导出依赖列表
+        run: |
+          $env:VENV = "venv"
+          python -m venv $env:VENV
+          & "$env:VENV/Scripts/pip" install -r requirements.txt
+          & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt
 
       - name: Create installer  # 创建安装包
-        run: |  # 执行多行命令
-          @'  # 开始多行字符串
-          !define APP_NAME "travel_guide_network"  # 定义应用名称
-          !define APP_VERSION "${{ github.event.inputs.version }}"  # 定义应用版本
-          !define APP_PUBLISHER "travel_guide_network Team"  # 定义发布者
+        run: |
+          $nsisContent = @'
+          !define APP_NAME "travel_guide_network"
+          !define APP_VERSION "${{ github.event.inputs.version }}"
+          !define APP_PUBLISHER "travel_guide_network Team"
           
-          OutFile "travel_guide_network-${APP_VERSION}.exe"  # 输出文件名
-          InstallDir "$PROGRAMFILES\${APP_NAME}"  # 安装目录
-          RequestExecutionLevel admin  # 请求管理员权限
-          SetCompressor lzma  # 设置压缩算法
+          OutFile "travel_guide_network-${APP_VERSION}.exe"
+          InstallDir "$PROGRAMFILES\${APP_NAME}"
+          RequestExecutionLevel admin
+          SetCompressor lzma
           
-          Page directory  # 目录选择页面
-          Page instfiles  # 安装文件页面
+          Page directory
+          Page instfiles
           
-          Section "Main Section" SEC01  # 主安装段
-            SetOutPath "$INSTDIR"  # 设置输出路径
-            File /r "venv\*"  # 复制虚拟环境
-            File *.py  # 复制Python文件
-            File requirements.txt  # 复制依赖文件
-            File bundled-requirements.txt  # 复制依赖列表
-            SetOutPath "$INSTDIR\nodejs"  # 设置Node.js输出路径
-            File /r "C:\Program Files\nodejs\*"  # 复制Node.js
-          SectionEnd  # 结束安装段
-          '@ | Out-File -Encoding utf8 setup.nsi  # 写入NSIS脚本
-          makensis setup.nsi  # 编译安装包
+          Section "Main Section" SEC01
+            SetOutPath "$INSTDIR"
+            File /r "venv\*"
+            File *.py
+            File requirements.txt
+            File bundled-requirements.txt
+            SetOutPath "$INSTDIR\nodejs"
+            File /r "C:\Program Files\nodejs\*"
+          SectionEnd
+          '@
+          $nsisContent | Out-File -Encoding utf8 setup.nsi
+          makensis setup.nsi
 
       - uses: actions/upload-artifact@v4  # 上传构建产物
         with:  # 配置参数
