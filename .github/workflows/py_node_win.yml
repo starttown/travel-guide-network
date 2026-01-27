@@ -29,7 +29,10 @@ jobs:
 
       - name: Bundle Python environment
         run: |
-          Copy-Item -Path "C:\hostedtoolcache\windows\Python\3.12.10\x64" -Destination "python" -Recurse -Force
+          # 动态查找Python安装路径
+          $pythonPath = python -c "import sys; print(sys.executable)"
+          $pythonDir = Split-Path -Parent $pythonPath
+          Copy-Item -Path $pythonDir -Destination "python" -Recurse -Force
           & "python/python.exe" -m pip install -r requirements.txt
           & "python/python.exe" -m pip freeze > bundled-requirements.txt
 
@@ -68,8 +71,6 @@ jobs:
           "@
           $nsisContent | Out-File -Encoding utf8 setup.nsi
           & "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
-
-
 
       - uses: actions/upload-artifact@v4
         with:
