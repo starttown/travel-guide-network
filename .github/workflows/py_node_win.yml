@@ -7,6 +7,9 @@ on:
         required: true
         type: string
 
+env:
+  EXE_NAME: travel_guide_network-${{ github.event.inputs.version }}.exe
+
 jobs:
   package:
     runs-on: windows-latest
@@ -29,7 +32,6 @@ jobs:
 
       - name: Bundle Python environment
         run: |
-          # 动态查找Python安装路径
           $pythonPath = python -c "import sys; print(sys.executable)"
           $pythonDir = Split-Path -Parent $pythonPath
           Copy-Item -Path $pythonDir -Destination "python" -Recurse -Force
@@ -38,12 +40,13 @@ jobs:
 
       - name: Create installer
         run: |
+          $exeName = "${{ env.EXE_NAME }}"
           $nsisContent = @"
           !define APP_NAME "travel_guide_network"
           !define APP_VERSION "${{ github.event.inputs.version }}"
           !define APP_PUBLISHER "travel_guide_network Team"
           
-          OutFile "travel_guide_network-${APP_VERSION}.exe"
+          OutFile "$exeName"
           InstallDir "$PROGRAMFILES\${APP_NAME}"
           RequestExecutionLevel admin
           SetCompressor lzma
@@ -75,4 +78,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: win-installer
-          path: travel_guide_network-${{ github.event.inputs.version }}.exe
+          path: ${{ env.EXE_NAME }}
