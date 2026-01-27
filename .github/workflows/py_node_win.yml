@@ -24,13 +24,11 @@ jobs:
         with:
           node-version: '20'
 
-      - run: pip install openagents
-
       - name: Bundle Python environment
         run: |
           $env:VENV = "venv"
           python -m venv $env:VENV
-          $env:VENV/Scripts/pip install openagents -r requirements.txt
+          $env:VENV/Scripts/pip install -r requirements.txt
           $env:VENV/Scripts/pip freeze > bundled-requirements.txt
 
       - name: Package
