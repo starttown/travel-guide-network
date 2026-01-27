@@ -28,8 +28,9 @@ jobs:
         run: |
           $env:VENV = "venv"
           python -m venv $env:VENV
-          $env:VENV/Scripts/pip install -r requirements.txt
-          $env:VENV/Scripts/pip freeze > bundled-requirements.txt
+          & "$env:VENV/Scripts/pip" install -r requirements.txt
+          & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt
+
 
       - name: Package
         run: |
