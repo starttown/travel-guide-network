@@ -25,10 +25,10 @@ jobs:
 
       - name: Bundle Python environment
         run: |
-           $ env:VENV = "venv"
+          $ env:VENV = "venv"
           python -m venv  $ env:VENV
-           $ env:VENV/Scripts/pip install openagents
-           $ env:VENV/Scripts/pip freeze > bundled-requirements.txt
+          $ env:VENV/Scripts/pip install openagents -r requirements.txt
+          $ env:VENV/Scripts/pip freeze > bundled-requirements.txt
 
       - name: Create launcher
         run: |
