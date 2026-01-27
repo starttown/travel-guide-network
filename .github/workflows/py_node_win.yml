@@ -1,42 +1,67 @@
-name: Reliable Windows Package
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version'
-        required: true
-        type: string
+name: Reliable Windows Package  # 工作流名称
+on:  # 触发条件
+  workflow_dispatch:  # 手动触发
+    inputs:  # 输入参数
+      version:  # 版本号参数
+        description: 'Release version'  # 参数描述
+        required: true  # 必填参数
+        type: string  # 参数类型
 
-jobs:
-  package:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+jobs:  # 任务定义
+  package:  # 任务名称
+    runs-on: windows-latest  # 运行环境
+    steps:  # 步骤列表
+      - uses: actions/checkout@v4  # 检出代码
 
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
+      - name: Setup Python 3.12  # 设置Python环境
+        uses: actions/setup-python@v5  # 使用Python设置action
+        with:  # 配置参数
+          python-version: '3.12'  # Python版本
+          cache: 'pip'  # 缓存pip依赖
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Setup Node.js 20  # 设置Node.js环境
+        uses: actions/setup-node@v4  # 使用Node.js设置action
+        with:  # 配置参数
+          node-version: '20'  # Node.js版本
 
-      - name: Bundle Python environment
-        run: |
-          $env:VENV = "venv"
-          python -m venv $env:VENV
-          & "$env:VENV/Scripts/pip" install -r requirements.txt
-          & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt
+      - name: Install NSIS  # 安装NSIS打包工具
+        run: choco install nsis -y  # 使用chocolatey安装
 
+      - name: Bundle Python environment  # 打包Python环境
+        run: |  # 执行多行命令
+          $env:VENV = "venv"  # 设置虚拟环境变量
+          python -m venv $env:VENV  # 创建虚拟环境
+          & "$env:VENV/Scripts/pip" install -r requirements.txt  # 安装依赖
+          & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt  # 导出依赖列表
 
-      - name: Package
-        run: |
-          Compress-Archive -Path venv,*.py,requirements.txt,bundled-requirements.txt -Destination release-${{ github.event.inputs.version }}.zip -Force
+      - name: Create installer  # 创建安装包
+        run: |  # 执行多行命令
+          @'  # 开始多行字符串
+          !define APP_NAME "travel_guide_network"  # 定义应用名称
+          !define APP_VERSION "${{ github.event.inputs.version }}"  # 定义应用版本
+          !define APP_PUBLISHER "travel_guide_network Team"  # 定义发布者
+          
+          OutFile "travel_guide_network-${APP_VERSION}.exe"  # 输出文件名
+          InstallDir "$PROGRAMFILES\${APP_NAME}"  # 安装目录
+          RequestExecutionLevel admin  # 请求管理员权限
+          SetCompressor lzma  # 设置压缩算法
+          
+          Page directory  # 目录选择页面
+          Page instfiles  # 安装文件页面
+          
+          Section "Main Section" SEC01  # 主安装段
+            SetOutPath "$INSTDIR"  # 设置输出路径
+            File /r "venv\*"  # 复制虚拟环境
+            File *.py  # 复制Python文件
+            File requirements.txt  # 复制依赖文件
+            File bundled-requirements.txt  # 复制依赖列表
+            SetOutPath "$INSTDIR\nodejs"  # 设置Node.js输出路径
+            File /r "C:\Program Files\nodejs\*"  # 复制Node.js
+          SectionEnd  # 结束安装段
+          '@ | Out-File -Encoding utf8 setup.nsi  # 写入NSIS脚本
+          makensis setup.nsi  # 编译安装包
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: win-package-reliable
-          path: release-${{ github.event.inputs.version }}.zip
+      - uses: actions/upload-artifact@v4  # 上传构建产物
+        with:  # 配置参数
+          name: win-installer  # 产物名称
+          path: travel_guide_network-${{ github.event.inputs.version }}.exe  # 文件路径
