@@ -52,11 +52,41 @@ jobs:
           Section "Main Section" SEC01
             SetOutPath "$INSTDIR"
             File /r "venv\*"
-            File *.py
+            File /r "*.py"
+            File /r "*.yaml"
             File requirements.txt
             File bundled-requirements.txt
             SetOutPath "$INSTDIR\nodejs"
             File /r "C:\Program Files\nodejs\*"
+            
+            CreateDirectory "$INSTDIR\agents"
+            CreateDirectory "$INSTDIR\tools"
+            CreateDirectory "$INSTDIR\config"
+            SetOutPath "$INSTDIR\agents"
+            File /r "agents\*.yaml"
+            File "agents\launcher.py"
+            File "agents\weather_connector.py"
+            SetOutPath "$INSTDIR\tools"
+            File "tools\travel_sender.py"
+            SetOutPath "$INSTDIR\config"
+            File /r "config\*"
+            
+            SetOutPath "$INSTDIR"
+            FileOpen $0 "start_agent.bat" w
+            FileWrite $0 "@echo off$\r$\n"
+            FileWrite $0 "set PATH=$INSTDIR\venv\Scripts;$INSTDIR\nodejs;%PATH%$\r$\n"
+            FileWrite $0 "cd /d $INSTDIR\agents$\r$\n"
+            FileWrite $0 "python launcher.py %*$\r$\n"
+            FileWrite $0 "pause$\r$\n"
+            FileClose $0
+            
+            FileOpen $1 "start_sender.bat" w
+            FileWrite $1 "@echo off$\r$\n"
+            FileWrite $1 "set PATH=$INSTDIR\venv\Scripts;%PATH%$\r$\n"
+            FileWrite $1 "cd /d $INSTDIR\tools$\r$\n"
+            FileWrite $1 "python travel_sender.py %*$\r$\n"
+            FileWrite $1 "pause$\r$\n"
+            FileClose $1
           SectionEnd
           '@
           $nsisContent | Out-File -Encoding utf8 setup.nsi
