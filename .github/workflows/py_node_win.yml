@@ -1,40 +1,40 @@
-name: Reliable Windows Package  # 工作流名称
-on:  # 触发条件
-  workflow_dispatch:  # 手动触发
-    inputs:  # 输入参数
-      version:  # 版本号参数
-        description: 'Release version'  # 参数描述
-        required: true  # 必填参数
-        type: string  # 参数类型
+name: Reliable Windows Package
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        type: string
 
-jobs:  # 任务定义
-  package:  # 任务名称
-    runs-on: windows-latest  # 运行环境
-    steps:  # 步骤列表
-      - uses: actions/checkout@v4  # 检出代码
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Setup Python 3.12  # 设置Python环境
-        uses: actions/setup-python@v5  # 使用Python设置action
-        with:  # 配置参数
-          python-version: '3.12'  # Python版本
-          cache: 'pip'  # 缓存pip依赖
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: Setup Node.js 20  # 设置Node.js环境
-        uses: actions/setup-node@v4  # 使用Node.js设置action
-        with:  # 配置参数
-          node-version: '20'  # Node.js版本
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Install NSIS  # 安装NSIS打包工具
-        run: choco install nsis -y  # 使用chocolatey安装
+      - name: Install NSIS
+        run: choco install nsis -y
 
-      - name: Bundle Python environment  # 打包Python环境
+      - name: Bundle Python environment
         run: |
           $env:VENV = "venv"
           python -m venv $env:VENV
           & "$env:VENV/Scripts/pip" install -r requirements.txt
           & "$env:VENV/Scripts/pip" freeze > bundled-requirements.txt
 
-      - name: Create installer  # 创建安装包
+      - name: Create installer
         run: |
           $nsisContent = @'
           !define APP_NAME "travel_guide_network"
@@ -60,9 +60,9 @@ jobs:  # 任务定义
           SectionEnd
           '@
           $nsisContent | Out-File -Encoding utf8 setup.nsi
-          makensis setup.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
 
-      - uses: actions/upload-artifact@v4  # 上传构建产物
-        with:  # 配置参数
-          name: win-installer  # 产物名称
-          path: travel_guide_network-${{ github.event.inputs.version }}.exe  # 文件路径
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win-installer
+          path: travel_guide_network-${{ github.event.inputs.version }}.exe
