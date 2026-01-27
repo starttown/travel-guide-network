@@ -61,15 +61,13 @@ jobs:
             
             CreateDirectory "$INSTDIR\agents"
             CreateDirectory "$INSTDIR\tools"
-            CreateDirectory "$INSTDIR\config"
             SetOutPath "$INSTDIR\agents"
             File /r "agents\*.yaml"
             File "agents\launcher.py"
             File "agents\weather_connector.py"
             SetOutPath "$INSTDIR\tools"
             File "tools\travel_sender.py"
-            SetOutPath "$INSTDIR\config"
-            File /r "config\*"
+
             
             SetOutPath "$INSTDIR"
             FileOpen $0 "start_agent.bat" w
