@@ -1,0 +1,50 @@
+# .github/workflows/build-windows.yml
+name: Reliable Windows Package
+on:
+  workflow_dispatch:
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: pip install openagents
+
+      - name: Bundle Python environment
+        run: |
+           $ env:VENV = "venv"
+          python -m venv  $ env:VENV
+           $ env:VENV\Scripts\pip install openagents
+          # Freeze to verify
+           $ env:VENV\Scripts\pip freeze > bundled-requirements.txt
+
+      - name: Create launcher
+        run: |
+          @'
+          @echo off
+          chcp 65001 >nul
+          call "%～dp0venv\Scripts\activate.bat" >nul
+          node "%～dp0app.js"
+          '@ | Out-File -Encoding utf8 run.bat
+
+      - name: Package
+        run: |
+          Compress-Archive -Path venv,node_modules,src,*.js,*.py,package*.json,requirements.txt,run.bat,bundled-requirements.txt -Destination release.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win-package-reliable
+          path: release.zip
