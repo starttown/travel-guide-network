@@ -1,7 +1,12 @@
-# .github/workflows/build-windows.yml
 name: Reliable Windows Package
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        type: string
+
 jobs:
   package:
     runs-on: windows-latest
@@ -19,30 +24,20 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm install
       - run: pip install openagents
 
       - name: Bundle Python environment
         run: |
-          $ env:VENV = "venv"
-          python -m venv  $ env:VENV
-          $ env:VENV/Scripts/pip install openagents -r requirements.txt
-          $ env:VENV/Scripts/pip freeze > bundled-requirements.txt
-
-      - name: Create launcher
-        run: |
-          @'
-          @echo off
-          chcp 65001 >nul
-          call "%～dp0venv\Scripts\activate.bat" >nul
-          node "%～dp0app.js"
-          '@ | Out-File -Encoding utf8 run.bat
+          $env:VENV = "venv"
+          python -m venv $env:VENV
+          $env:VENV/Scripts/pip install openagents -r requirements.txt
+          $env:VENV/Scripts/pip freeze > bundled-requirements.txt
 
       - name: Package
         run: |
-          Compress-Archive -Path venv,node_modules,src,*.js,*.py,package*.json,requirements.txt,run.bat,bundled-requirements.txt -Destination release.zip -Force
+          Compress-Archive -Path venv,*.py,requirements.txt,bundled-requirements.txt -Destination release-${{ github.event.inputs.version }}.zip -Force
 
       - uses: actions/upload-artifact@v4
         with:
           name: win-package-reliable
-          path: release.zip
+          path: release-${{ github.event.inputs.version }}.zip
