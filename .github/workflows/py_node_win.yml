@@ -8,7 +8,7 @@ on:
         type: string
 
 env:
-  EXE_NAME: travel_guide_network-${{ github.event.inputs.version }}.exe
+  MSI_NAME: travel_guide_network-${{ github.event.inputs.version }}.msi
 
 jobs:
   package:
@@ -27,8 +27,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install NSIS
-        run: choco install nsis -y
+      - name: Install WiX Toolset
+        run: choco install wixtoolset -y
 
       - name: Bundle Python environment
         run: |
@@ -38,44 +38,63 @@ jobs:
           & "python/python.exe" -m pip install -r requirements.txt
           & "python/python.exe" -m pip freeze > bundled-requirements.txt
 
-      - name: Create installer
+      - name: Create MSI installer
         run: |
-          $exeName = "${{ env.EXE_NAME }}"
-          $nsisContent = @"
-          !define APP_NAME "travel_guide_network"
-          !define APP_VERSION "${{ github.event.inputs.version }}"
-          !define APP_PUBLISHER "travel_guide_network Team"
-          
-          OutFile "$exeName"
-          InstallDir "$PROGRAMFILES\${APP_NAME}"
-          RequestExecutionLevel admin
-          SetCompressor lzma
-          
-          Page directory
-          Page instfiles
-          
-          Section "Main Section" SEC01
-            SetOutPath "$INSTDIR"
-            File /r "python\*"
-            File /r "*.py"
-            File /r "*.yaml"
-            File requirements.txt
-            File bundled-requirements.txt
-            SetOutPath "$INSTDIR\nodejs"
-            File /r "C:\Program Files\nodejs\*"
+          $msiName = "${{ env.MSI_NAME }}"
+          $version = "${{ github.event.inputs.version }}"
+          $wxsContent = @"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            <Product Id="*" Name="travel_guide_network" Version="$version" Manufacturer="travel_guide_network Team" UpgradeCode="YOUR-GUID-HERE">
+              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+              
+              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+              <MediaTemplate EmbedCab="yes" />
+              
+              <Feature Id="ProductFeature" Title="travel_guide_network" Level="1">
+                <ComponentGroupRef Id="ProductComponents" />
+              </Feature>
+            </Product>
             
-            SetOutPath "$INSTDIR\agents"
-            File /r "agents\*.yaml"
-            File "agents\launcher.py"
-            File "agents\weather_connector.py"
-            SetOutPath "$INSTDIR\tools"
-            File "tools\travel_sender.py"
-          SectionEnd
+            <Fragment>
+              <Directory Id="TARGETDIR" Name="SourceDir">
+                <Directory Id="ProgramFilesFolder">
+                  <Directory Id="INSTALLFOLDER" Name="travel_guide_network" />
+                </Directory>
+              </Directory>
+            </Fragment>
+            
+            <Fragment>
+              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+                <Component Id="PythonComponent" Guid="*">
+                  <File Source="python\*" />
+                </Component>
+                <Component Id="ScriptsComponent" Guid="*">
+                  <File Source="*.py" />
+                  <File Source="*.yaml" />
+                  <File Source="requirements.txt" />
+                  <File Source="bundled-requirements.txt" />
+                </Component>
+                <Component Id="NodeJSComponent" Guid="*">
+                  <File Source="C:\Program Files\nodejs\*" />
+                </Component>
+                <Component Id="AgentsComponent" Guid="*">
+                  <File Source="agents\*.yaml" />
+                  <File Source="agents\launcher.py" />
+                  <File Source="agents\weather_connector.py" />
+                </Component>
+                <Component Id="ToolsComponent" Guid="*">
+                  <File Source="tools\travel_sender.py" />
+                </Component>
+              </ComponentGroup>
+            </Fragment>
+          </Wix>
           "@
-          $nsisContent | Out-File -Encoding utf8 setup.nsi
-          & "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
+          $wxsContent | Out-File -Encoding utf8 product.wxs
+          & "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe" product.wxs
+          & "C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe" -out $msiName product.wixobj
 
       - uses: actions/upload-artifact@v4
         with:
           name: win-installer
-          path: ${{ env.EXE_NAME }}
+          path: ${{ env.MSI_NAME }}
