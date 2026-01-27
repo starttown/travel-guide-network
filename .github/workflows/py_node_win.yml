@@ -91,8 +91,13 @@ jobs:
           </Wix>
           "@
           $wxsContent | Out-File -Encoding utf8 product.wxs
-          & "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe" product.wxs
-          & "C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe" -out $msiName product.wixobj
+          
+          $wixPath = Get-ChildItem "C:\Program Files (x86)" -Filter "WiX Toolset*" -Directory | Select-Object -First 1 -ExpandProperty FullName
+          $candlePath = Join-Path $wixPath "bin\candle.exe"
+          $lightPath = Join-Path $wixPath "bin\light.exe"
+          
+          & $candlePath product.wxs
+          & $lightPath -out $msiName product.wixobj
 
       - uses: actions/upload-artifact@v4
         with:
