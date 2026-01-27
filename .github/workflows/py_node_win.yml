@@ -35,7 +35,7 @@ jobs:
 
       - name: Create installer
         run: |
-          $nsisContent = @'
+          $nsisContent = @"
           !define APP_NAME "travel_guide_network"
           !define APP_VERSION "${{ github.event.inputs.version }}"
           !define APP_PUBLISHER "travel_guide_network Team"
@@ -50,7 +50,7 @@ jobs:
           
           Section "Main Section" SEC01
             SetOutPath "$INSTDIR"
-            File /r "venv\*"
+            File /r "python\*"
             File /r "*.py"
             File /r "*.yaml"
             File requirements.txt
@@ -67,9 +67,10 @@ jobs:
             SetOutPath "$INSTDIR\tools"
             File "tools\travel_sender.py"
           SectionEnd
-          '@
+          "@
           $nsisContent | Out-File -Encoding utf8 setup.nsi
           & "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
+
 
       - uses: actions/upload-artifact@v4
         with:
