@@ -8,98 +8,75 @@ on:
         type: string
 
 env:
-  MSI_NAME: travel_guide_network-${{ github.event.inputs.version }}.msi
+  INSTALLER_NAME: travel_guide_network-${{ github.event.inputs.version }}-setup.exe
 
 jobs:
   package:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4  # 检出代码
 
-      - name: Setup Python 3.12
+      - name: Setup Python 3.12  # 设置Python环境
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 20  # 设置Node.js环境
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install WiX Toolset
-        run: choco install wixtoolset -y
+      - name: Install Inno Setup  # 安装Inno Setup
+        run: choco install innosetup -y
 
-      - name: Bundle Python environment
+      - name: Install Python dependencies  # 安装Python依赖
+        run: python -m pip install -r requirements.txt
+
+      - name: Create portable Python environment  # 创建可移植Python环境
         run: |
           $pythonPath = python -c "import sys; print(sys.executable)"
           $pythonDir = Split-Path -Parent $pythonPath
-          Copy-Item -Path $pythonDir -Destination "python" -Recurse -Force
-          & "python/python.exe" -m pip install -r requirements.txt
-          & "python/python.exe" -m pip freeze > bundled-requirements.txt
+          New-Item -ItemType Directory -Force -Path "python"
+          Copy-Item -Path "$pythonDir\*" -Destination "python" -Recurse -Force -Exclude @("*.pyc", "__pycache__")
 
-      - name: Create MSI installer
+      - name: Create portable Node.js environment  # 创建可移植Node.js环境
         run: |
-          $msiName = "${{ env.MSI_NAME }}"
-          $version = "${{ github.event.inputs.version }}"
-          $wxsContent = @"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-            <Product Id="*" Name="travel_guide_network" Version="$version" Manufacturer="travel_guide_network Team" UpgradeCode="YOUR-GUID-HERE">
-              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-              
-              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
-              <MediaTemplate EmbedCab="yes" />
-              
-              <Feature Id="ProductFeature" Title="travel_guide_network" Level="1">
-                <ComponentGroupRef Id="ProductComponents" />
-              </Feature>
-            </Product>
-            
-            <Fragment>
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="travel_guide_network" />
-                </Directory>
-              </Directory>
-            </Fragment>
-            
-            <Fragment>
-              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component Id="PythonComponent" Guid="*">
-                  <File Source="python\*" />
-                </Component>
-                <Component Id="ScriptsComponent" Guid="*">
-                  <File Source="*.py" />
-                  <File Source="*.yaml" />
-                  <File Source="requirements.txt" />
-                  <File Source="bundled-requirements.txt" />
-                </Component>
-                <Component Id="NodeJSComponent" Guid="*">
-                  <File Source="C:\Program Files\nodejs\*" />
-                </Component>
-                <Component Id="AgentsComponent" Guid="*">
-                  <File Source="agents\*.yaml" />
-                  <File Source="agents\launcher.py" />
-                  <File Source="agents\weather_connector.py" />
-                </Component>
-                <Component Id="ToolsComponent" Guid="*">
-                  <File Source="tools\travel_sender.py" />
-                </Component>
-              </ComponentGroup>
-            </Fragment>
-          </Wix>
-          "@
-          $wxsContent | Out-File -Encoding utf8 product.wxs
-          
-          $wixPath = Get-ChildItem "C:\Program Files (x86)" -Filter "WiX Toolset*" -Directory | Select-Object -First 1 -ExpandProperty FullName
-          $candlePath = Join-Path $wixPath "bin\candle.exe"
-          $lightPath = Join-Path $wixPath "bin\light.exe"
-          
-          & $candlePath product.wxs
-          & $lightPath -out $msiName product.wixobj
+          $nodePath = node -e "console.log(process.execPath)"
+          $nodeDir = Split-Path -Parent $nodePath
+          New-Item -ItemType Directory -Force -Path "nodejs"
+          Copy-Item -Path "$nodeDir\*" -Destination "nodejs" -Recurse -Force
 
-      - uses: actions/upload-artifact@v4
+      - name: Create Inno Setup installer  # 创建安装包
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          $installerScript = @"
+          [Setup]
+          AppName=travel_guide_network
+          AppVersion=$version
+          DefaultDirName={autopf}\travel_guide_network
+          OutputBaseFilename=travel_guide_network-$version-setup
+          Compression=lzma2
+          SolidCompression=yes
+          
+          [Files]
+          Source: "python\*"; DestDir: "{app}\python"; Flags: ignoreversion recursesubdirs
+          Source: "nodejs\*"; DestDir: "{app}\nodejs"; Flags: ignoreversion recursesubdirs
+          Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+          
+          [Icons]
+          Name: "{group}\travel_guide_network"; Filename: "{app}\agents\launch.py"
+          "@
+          $installerScript | Out-File -Encoding utf8 setup.iss
+          
+          $innoPath = Get-ChildItem "C:\Program Files (x86)" -Filter "Inno Setup*" -Directory | Select-Object -First 1 -ExpandProperty FullName
+          & "$innoPath\ISCC.exe" setup.iss
+
+      - name: Rename installer  # 重命名安装包
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          Get-ChildItem -Filter "travel_guide_network-$version-setup.exe" | Rename-Item -NewName "${{ env.INSTALLER_NAME }}"
+
+      - uses: actions/upload-artifact@v4  # 上传安装包
         with:
           name: win-installer
-          path: ${{ env.MSI_NAME }}
+          path: ${{ env.INSTALLER_NAME }}
