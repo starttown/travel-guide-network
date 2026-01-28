@@ -55,6 +55,7 @@ jobs:
           AppVersion=$version
           DefaultDirName={autopf}\travel_guide_network
           OutputBaseFilename=travel_guide_network-$version-setup
+          OutputDir=.
           Compression=lzma2
           SolidCompression=yes
           
@@ -64,17 +65,12 @@ jobs:
           Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
           
           [Icons]
-          Name: "{group}\travel_guide_network"; Filename: "{app}\agents\launch.py"
+          Name: "{group}\travel_guide_network"; Filename: "{app}\main.py"
           "@
           $installerScript | Out-File -Encoding utf8 setup.iss
           
           $innoPath = Get-ChildItem "C:\Program Files (x86)" -Filter "Inno Setup*" -Directory | Select-Object -First 1 -ExpandProperty FullName
           & "$innoPath\ISCC.exe" setup.iss
-
-      - name: Rename installer  # 重命名安装包
-        run: |
-          $version = "${{ github.event.inputs.version }}"
-          Get-ChildItem -Filter "travel_guide_network-$version-setup.exe" | Rename-Item -NewName "${{ env.INSTALLER_NAME }}"
 
       - uses: actions/upload-artifact@v4  # 上传安装包
         with:
