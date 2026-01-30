@@ -1,0 +1,6 @@
+{
+  "DEFAULT_LLM_PROVIDER": "custom",
+  "DEFAULT_LLM_BASE_URL": "http://localhost:11434/v1",
+  "DEFAULT_LLM_API_KEY": "not-required",
+  "DEFAULT_LLM_MODEL_NAME": "gpt-oss:20b"
+}
