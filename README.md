@@ -1,173 +1,149 @@
-# Travel Guide Workspace
-
-An OpenAgents network that generates travel advice based on real-time weather data. It features a standard travel guide agent and four unique Hogwarts-themed student agents (Gryffindor, Slytherin, Ravenclaw, Hufflepuff) that analyze the same data from different perspectives.
-
-
-https://www.bilibili.com/video/BV1ti6ZBLEyh/?pop_share=1&spm_id_from=333.40164.0.0&vd_source=eb3f3277e676e4e60b5000d6466252b2
-
-## Overview
-
-This workspace contains a travel guide system that:
-- Receives city and date requests via HTTP
-- Fetches weather data from Open-Meteo API
-- Uses LLM to generate personalized travel recommendations
-
-## Architecture
+# TravelGuide Multi-Agent System
+A full-stack intelligent travel recommendation system built with **OpenAgents**, **SvelteKit**, and **Python**. It simulates a collaborative workflow where four Hogwarts-style AI agents analyze weather data and provide distinct travel advice in real-time.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8+-green.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D16-green.svg)
+## 📋 Project Overview
+This system demonstrates a modern multi-agent architecture integrated with a reactive web UI:
+1.  **Backend (Python/OpenAgents)**: Orchestrates four distinct AI Agents (Gryffindor, Slytherin, Ravenclaw, Hufflepuff). It fetches real-time weather data and delegates tasks sequentially.
+2.  **Frontend (SvelteKit)**: Provides a responsive dashboard for users to input travel queries and view real-time streaming logs via Server-Sent Events (SSE).
+3.  **Orchestrator**: A unified launcher script (`main.py`) that manages the lifecycle of both the backend services and the frontend server.
+### 🏰 The Agents
+-   **🦁 Gryffindor**: Focuses on bravery, adventure, and outdoor challenges.
+-   **🐍 Slytherin**: Focuses on strategic planning, efficiency, and resource management.
+-   **🦅 Ravenclaw**: Focuses on learning, growth, knowledge, and exploration.
+-   **🦡 Hufflepuff**: Focuses on comfort, food, relaxation, and a friendly atmosphere.
+## 🏗️ System Architecture
 ```mermaid
-flowchart LR
-  C[travel_sender]
-  C --> A[weather_connector]
-  A --> A1[travel-guide-agent]
-  A --> A2[gryffindor-student]
-  A --> A3[slytherin-student]
-  A --> A4[hufflepuff-student]
-  A --> A5[ravenclaw-student]
+graph LR
+    User[User Browser] -->|Form Submit| FE[SvelteKit Frontend :5173]
+    FE -->|HTTP Request| BE[Python Backend :8888]
+    BE -->|API Call| Weather[Open-Meteo API]
+    BE -->|Delegate Tasks| Agents[OpenAgents Network]
+    
+    Agents -->|Results| BE
+    BE -->|POST Logs| LS[Internal Log Server :9999]
+    LS -->|SSE Stream| FE
+    FE -->|Real-time Update| User
 ```
-
-## Agents
-
-| Agent | Type | Description |
-|-------|------|-------------|
-| `weather-connector` | Python Worker | Receives HTTP requests, fetches data from Open-Meteo, and publishes to the channel. |
-| `travel-guide` | YAML Collaborator | Provides professional, practical travel advice based on weather. |
-| `gryffindor-student` | YAML Collaborator | Focuses on **bravery** and adventure activities. |
-| `slytherin-student` | YAML Collaborator | Focuses on **strategy**, efficiency, and elegant planning. |
-| `ravenclaw-student` | YAML Collaborator | Focuses on **wisdom**, museums, and culture. |
-| `hufflepuff-student` | YAML Collaborator | Focuses on **kindness**, comfort, and family-friendly activities. |
-
-## Quick Start
-
-### 1. Launch All Components
-
-```bash
-python launcher.py all
-```
-
-Or start only core components (Network, Connector, Guide Agent, Studio)
-
-```bash
-python launcher.py core
-```
-
-This will start:
-- Network (ports 8700/8600)
-- Weather Connector (port 8889)
-- Travel Guide Agent
-- Studio Web Interface
-
-
-### 2. Send Travel Request
-
-Use the sender script:
-
-```bash
-Get guide for today
-python travel_sender.py Beijing
-
-Get guide for tomorrow (offset=1)
-python travel_sender.py Beijing 1
-
-Get guide for day after tomorrow (offset=2)
-python travel_sender.py Shanghai 2
-
-Get guide for specific date
-python travel_sender.py Tokyo 2026-01-20
-
-```
-## Configuration
-
-- **Network Port:** 8700 (HTTP), 8600 (gRPC)
-- **Connector HTTP Port:** 8889
-- **Studio:** http://localhost:8700/studio/
-- **MCP:** http://localhost:8700/mcp
-- **Channel:** `travel-guide-stream`
-
-## Agent Groups & Authentication
-
-| Group | Password | Description |
-|-------|----------|-------------|
-| `guest` | (none) | Default group, no password required |
-| `admin` | `admin` | Full permissions to all features |
-| `coordinators` | `coordinators` | For router/coordinator agents |
-
-### Logging in as Admin
-
-To access admin features in Studio:
-
-1. Open http://localhost:8700/studio/
-2. Click on the group selector (or login)
-3. Select group: **admin**
-4. Enter password: **admin**
-
-## API Endpoints
-
-### POST /guide
-
-Send travel guide request to Weather Connector.
-
-**Request:**
+The architecture features a unique **Log Relay**: Python agents send results to an internal Node.js server (embedded in the frontend), which pushes updates to the browser instantly.
+## 🚀 Quick Start
+### Prerequisites
+Before running the system, ensure you have the following installed:
+-   **Python**: Version 3.8 or higher.
+-   **Node.js**: Version 16 or higher.
+-   **pnpm**: Fast, disk space efficient package manager.
+    ```bash
+    npm install -g pnpm
+    # or enable corepack: corepack enable
+    ```
+-   **OpenAgents**: Python framework for agents.
+-   **LLM Service**: A running LLM service (e.g., Ollama, OpenAI compatible).
+### 1. Configuration
+**Configure the Backend LLM:**
+Edit `network/llm_config.json` to point to your LLM provider.
 ```json
 {
-“city”: “Beijing”,
-“date”: “1”
+  "DEFAULT_LLM_PROVIDER": "custom",
+  "DEFAULT_LLM_BASE_URL": "http://localhost:11434/v1",
+  "DEFAULT_LLM_API_KEY": "not-required",
+  "DEFAULT_LLM_MODEL_NAME": "gpt-oss:20b"
 }
 ```
-
-
-**Parameters:**
-- `city` (required): City name
-- `date` (optional): 
-  - Integer offset (e.g., `1` for tomorrow, `-1` for yesterday)
-  - Date string (e.g., `2026-01-20`)
-  - Default: today
-
-**Response:**
-```json
-{
-“status”: “accepted”,
-“message”: “Processing guide request…”
-}
+**Install Python Dependencies:**
+```bash
+cd network
+pip install openagents aiohttp psutil requests
 ```
-
-
-## Date Offsets
-
-| Offset | Meaning | Example (Today: 2026-01-15) |
-|--------|---------|----------------------------|
-| 0 | Today | 2026-01-15 |
-| 1 | Tomorrow | 2026-01-16 |
-| 2 | Day after tomorrow | 2026-01-17 |
-| -1 | Yesterday | 2026-01-14 |
-
-**Limit:** Future max 15 days, past max 30 days
-
-## Output Format
-
-The Travel Guide Agent generates structured guides in Chinese:
-
-🌤️ 天气概况
-Beijing, 2026-01-16
-多云转晴
-🌡️ 温度: 5°C ~ 15°C | 💧 降水: 0mm | 🌬️ 风力: 10km/h
-
-👕 穿搭建议
-建议穿着薄外套，携带雨伞
-
-🎒 出行活动推荐
-
-适合: 公园散步 / 室内博物馆
-不适合: 露营 / 户外烧烤
-⚠️ 注意事项
-注意保暖，防晒
-
-
-## Next Steps
-
-- Customize `travel-guide-agent.yaml` to adjust the travel guide style
-- Add more weather parameters in `weather_connector.py`
-- Create multiple travel guide agents for different styles (budget, luxury, adventure)
-- Visit [openagents.org/docs](https://openagents.org/docs/) for full documentation
-
-## License
-
-MIT License
+**Install Frontend Dependencies:**
+```bash
+cd frontend
+pnpm install
+```
+### 2. Launch the System
+The repository includes a unified launcher script that handles the startup sequence automatically (Backend $\to$ Frontend).
+From the **root directory**, run:
+```bash
+python main.py
+```
+**What happens when you run this?**
+1.  The script starts the Python Backend (Network + Agents).
+2.  It waits for the Weather Connector API to be ready (Port `8888`).
+3.  It automatically launches the SvelteKit Frontend (Port `5173`).
+4.  Your browser should open automatically pointing to the dashboard.
+### 3. Usage
+1.  **Generate Guide**: In the web UI, enter a city (e.g., "London") and date offset.
+2.  **Watch Live**: Observe the logs in real-time as agents process the request.
+3.  **Export**: Click "Export Guides PDF" to save the generated advice.
+## 📂 Project Structure
+```
+.
+├── network/                    # Backend Directory
+│   ├── agents/                # Agent YAML configs
+│   ├── tools/                 # Utilities (weather, logging)
+│   ├── logs/                  # Runtime logs
+│   ├── launch.py              # Backend launcher script
+│   ├── network.yaml           # Network configuration
+│   └── llm_config.json        # LLM provider settings
+├── frontend/                   # Frontend Directory
+│   ├── src/
+│   │   ├── routes/            # SvelteKit pages & API
+│   │   └── app.html           # HTML template
+│   ├── static/                # Static assets
+│   ├── vite.config.ts         # Vite + Internal Log Server
+│   ├── svelte.config.js       # Adapter config
+│   └── package.json
+├── nodejs/                     # (Optional) Portable Node environment for Windows
+├── main.py                     # 🌟 Unified System Launcher
+└── README.md                   # This file
+```
+## ⚙️ Configuration Details
+### Ports
+The system uses the following default ports. Ensure they are available:
+| Service               | Port  | Description                              |
+| --------------------- | ----- | ---------------------------------------- |
+| Frontend (Dev)       | 5173  | SvelteKit Development Server             |
+| Backend API          | 8888  | Python Weather Connector API             |
+| Internal Log Server  | 9999  | Embedded Log Server (for SSE streaming)  |
+| OpenAgents Network   | 8700  | Agent Communication (HTTP)              |
+| OpenAgents Network   | 8600  | Agent Communication (gRPC)               |
+### Backend (`network/`)
+-   **Agent Timeouts**: Default is 180s (configurable in `network.yaml`).
+-   **Weather API**: Uses Open-Meteo (Free for non-commercial use).
+-   **Authentication**: Uses a default password hash for the coordinator/worker group.
+### Frontend (`frontend/`)
+-   **Streaming**: Uses Server-Sent Events (SSE) connected to `/api/stream`.
+-   **Security**: Implements `escapeHtml` to prevent XSS attacks from agent outputs.
+-   **Styling**: Uses Tailwind CSS via Vite plugin.
+## 🔒 License & Commercial Usage Notice
+### Open-Meteo API Usage Policy
+**⚠️ Important:** This project integrates the free API provided by Open-Meteo.
+-   **Non-Commercial Use Only**: The free tier of the Open-Meteo API is strictly licensed for **non-commercial purposes**.
+-   **Commercial Restriction**: If you intend to deploy this system for commercial use (e.g., selling the service, using it in a business environment), you **must** obtain a commercial license from Open-Meteo or switch to a licensed weather data provider.
+-   **Attribution**: Please refer to [Open-Meteo's Terms of Use](https://open-meteo.com/en/terms) for the most up-to-date licensing requirements.
+### OpenAgents Framework
+This project utilizes the OpenAgents framework. Please ensure you comply with the license of the OpenAgents framework (typically Apache 2.0, refer to the official repository for details).
+### Project License
+This specific codebase is licensed under the **MIT License**.
+## 🐛 Troubleshooting
+### "Connection refused" when submitting form
+-   **Cause**: The Python backend (`weather_connector.py`) is not running or crashed.
+-   **Fix**: Check the terminal where `python main.py` is running. Look for backend errors.
+### Logs not appearing in the browser
+-   **Cause 1**: Port `9999` is blocked.
+-   **Cause 2**: The Python backend `send_result.py` is sending to the wrong URL (must be `http://localhost:9999/log`).
+-   **Fix**: Restart `main.py` to ensure ports are clean.
+### Frontend won't start on Windows
+-   **Cause**: `main.py` looks for a local `nodejs/pnpm.cmd` or a global `pnpm`.
+-   **Fix**: Ensure `pnpm` is installed globally (`npm install -g pnpm`) or place the Node.js portable binaries in the `nodejs/` folder at the root.
+### Agent Task Timeout
+-   **Cause**: LLM is too slow or unresponsive.
+-   **Fix**: Increase `agent_timeout` in `network.yaml`.
+## 🙏 Acknowledgments
+This project is built upon the following excellent open-source tools and services:
+-   **[OpenAgents](https://github.com/geekan/OpenAgents)**: A powerful framework for orchestrating multi-agent workflows.
+-   **[Open-Meteo](https://open-meteo.com/)**: For providing the free, open-source weather API.
+-   **[SvelteKit](https://kit.svelte.dev/)**: The web framework used for the frontend.
+-   **[Tailwind CSS](https://tailwindcss.com/)**: For rapid UI development.
+---
+**Developed with ❤️ using Python and SvelteKit**

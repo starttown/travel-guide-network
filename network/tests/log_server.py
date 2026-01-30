@@ -1,68 +1,59 @@
 #!/usr/bin/env python3
-"""
-Robust Log Server - Receives results via HTTP and prints them.
-Guaranteed not to crash.
-"""
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import json
-import sys
-import datetime
+import asyncio
+from aiohttp import web
+from datetime import datetime
 
-class LogHandler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass # 禁用默认日志
-
-    def do_POST(self):
-        if self.path == '/log':
-            try:
-                # 1. 读取数据
-                content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                
-                # 2. 解析 JSON (带容错)
-                try:
-                    data = json.loads(post_data.decode('utf-8'))
-                except json.JSONDecodeError:
-                    print("❌ [Server] 收到非法 JSON，忽略。")
-                    self._respond(400, {"error": "Invalid JSON"})
-                    return
-
-                # 3. 美化打印
-                agent_name = data.get('agent', 'Unknown')
-                content = data.get('content', '')
-                
-                print("\n" + "="*70)
-                print(f"📩 [{datetime.datetime.now().strftime('%H:%M:%S')}] 收到来自 '{agent_name}' 的建议:")
-                print("="*70)
-                print(content)
-                print("="*70 + "\n")
-
-                # 4. 响应成功
-                self._respond(200, {"status": "received"})
-
-            except Exception as e:
-                # 捕获所有异常，防止服务器崩溃
-                print(f"⚠️ [Server] 内部错误 (但服务未中断): {e}")
-                self._respond(500, {"error": "Internal Server Error"})
-        else:
-            self._respond(404, {"error": "Not Found"})
-
-    def _respond(self, code, data):
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
-
-def run_server(port=9999):
-    server_address = ('', port)
-    httpd = HTTPServer(server_address, LogHandler)
-    print(f"🚀 日志服务器运行在 http://localhost:{port}/log")
-    print("💡 等待学生 Agent 发送建议...\n")
+async def handle_log(request):
+    """处理 /log 路径的 POST 请求"""
     try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n🛑 服务器已关闭")
-        httpd.server_close()
+        # 1. 解析 JSON 数据
+        data = await request.json()
+        
+        agent_id = data.get('agent', 'Unknown')
+        content = data.get('content', '')
+        timestamp = datetime.now().strftime('%H:%M:%S')
 
-if __name__ == "__main__":
-    run_server()
+        # 2. 格式化打印接收到的消息
+        print("\n" + "=" * 60)
+        print(f"📩 [{timestamp}] 收到来自 Agent: {agent_id} 的消息")
+        print("-" * 60)
+        print(content)
+        print("=" * 60 + "\n")
+
+        # 3. 返回成功响应给发送方
+        return web.json_response({"status": "success", "message": "Logged"})
+
+    except Exception as e:
+        print(f"❌ 处理请求时出错: {e}")
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+
+async def start_server():
+    """启动日志服务器"""
+    app = web.Application()
+    # 注册路由
+    app.router.add_post('/log', handle_log)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    # 绑定到 0.0.0.0:9999
+    # 注意：如果你的 weather_connector 和此服务端在同一台机器，可以使用 localhost
+    site = web.TCPSite(runner, '0.0.0.0', 9999)
+    await site.start()
+
+    print("🚀 日志服务器已启动")
+    print("📍 监听地址: http://0.0.0.0:9999/log")
+    print("📝 等待接收消息...")
+    print("   (按 Ctrl+C 停止服务器)")
+    
+    try:
+        # 保持服务器运行
+        while True:
+            await asyncio.sleep(3600)
+    except KeyboardInterrupt:
+        print("\n⏹️  服务器正在关闭...")
+    finally:
+        await runner.cleanup()
+
+if __name__ == '__main__':
+    asyncio.run(start_server())
