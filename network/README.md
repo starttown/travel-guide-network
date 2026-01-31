@@ -1,4 +1,4 @@
-# TravelGuide Multi-Agent System
+# Travel-Guide-Network
 An intelligent travel advice system built on the OpenAgents framework that generates personalized travel recommendations based on real-time weather data.
 ## 📋 Project Overview
 This project demonstrates a multi-agent collaborative workflow:
