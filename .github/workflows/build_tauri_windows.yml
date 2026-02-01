@@ -13,36 +13,42 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1. 检出代码
+      # 1. 检出代码（必要）
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 安装 Node.js 并缓存 pnpm
-      # 这个步骤会自动安装 Node.js，并且把 pnpm 添加到 PATH
+      # 2. 安装Node.js并缓存pnpm（必要，保留缓存配置）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'  # 关键：启用 pnpm 缓存
+          cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      # 3. 安装 Rust 工具链
+      # 3. 手动安装pnpm并添加PATH（关键修复，解决Windows环境下cache未生效的问题）
+      - name: Install pnpm
+        run: |
+          npm install -g pnpm
+          echo "##[add-path]$(npm config get prefix)/bin" >> $GITHUB_PATH
+        shell: bash  # 确保使用bash环境，兼容Windows runner
+
+      # 4. 安装Rust工具链（必要，Tauri依赖）
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      # 4. 安装前端依赖并构建
+      # 5. 安装前端依赖（必要）
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: pnpm install
 
-      # 5. 执行 Tauri 构建命令
+      # 6. 执行Tauri构建（必要）
       - name: Build Tauri App (MSI)
         working-directory: ./frontend
         env:
           CI: true
         run: pnpm tauri build
 
-      # 6. 上传构建产物 (MSI)
+      # 7. 上传构建产物（必要）
       - name: Upload MSI Artifact
         uses: actions/upload-artifact@v4
         with:
