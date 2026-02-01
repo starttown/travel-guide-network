@@ -1,17 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { enhance } from '$app/forms';
-  import type { ActionData } from './$types';
+  import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
 
-  export let form: ActionData;
+  let city = $state("Beijing");
+  let dateOffset = $state(0);
+  let senderResult = $state("");
+  let serverLogs: string[] = $state([]);
 
-  let city = 'Beijing';
-  let dateOffset = 0;
-
-  let serverLogs: string[] = [];
-  let eventSource: EventSource;
-
-  // 工具函数：防止 XSS 攻击，转义 HTML 特殊字符
   function escapeHtml(unsafe: unknown): string {
     const str = String(unsafe);
     return str
@@ -22,85 +18,79 @@
       .replace(/'/g, "&#039;");
   }
 
-  onMount(() => {
-    eventSource = new EventSource('/api/stream');
-    
-    // 新增：错误处理，防止连接静默失败
-    eventSource.onerror = (err) => {
-      console.error('SSE Connection Error:', err);
-      // 如果需要断开后不再自动重连，可在此处调用 eventSource.close()
-    };
+  async function callService(event: Event) {
+    event.preventDefault();
+    senderResult = "Calling Python backend...";
 
-    eventSource.onmessage = (event) => {
-      try {
-        // 尝试解析 JSON
-        const logMsg = JSON.parse(event.data);
-        
-        // 修复：限制日志长度，防止内存溢出
-        if (serverLogs.length > 500) {
-          serverLogs = serverLogs.slice(-400); // 保留最近的 400 条
-        }
-        
-        serverLogs = [...serverLogs, logMsg];
-      } catch (e) {
-        // 修复：JSON 解析失败时，将原始数据作为字符串记录，防止中断
-        console.warn('Failed to parse log message', e);
-        serverLogs = [...serverLogs, event.data];
+    try {
+      const res = await invoke<string>("call_service", {
+        city,
+        dateOffset,
+      });
+      senderResult = `Status: success\nResponse: ${res}`;
+    } catch (e: any) {
+      console.error("call_service error:", e);
+      senderResult = `Error: ${String(e)}`;
+    }
+  }
+
+  onMount(async () => {
+    const unlisten = await listen<string>("log-line", (event) => {
+      const logMsg = event.payload;
+      if (serverLogs.length > 500) {
+        serverLogs = serverLogs.slice(-400);
       }
+      serverLogs = [...serverLogs, logMsg];
+    });
+
+    return () => {
+      unlisten();
     };
-    
-    return () => eventSource.close();
   });
 
   function clearLogs() {
     serverLogs = [];
   }
 
-  function exportToPDF() {
+   function exportToPDF() {
     if (serverLogs.length === 0) {
       alert("当前没有日志可打印");
       return;
     }
 
-    const now = new Date();
-    const timestamp = now.getFullYear() +
-      '-' + String(now.getMonth() + 1).padStart(2, '0') +
-      '-' + String(now.getDate()).padStart(2, '0') +
-      '_' + String(now.getHours()).padStart(2, '0') +
-      '-' + String(now.getMinutes()).padStart(2, '0') +
-      '-' + String(now.getSeconds()).padStart(2, '0');
-
-    const fileName = `Travel_Guides_${timestamp}`;
-
-    const printWindow = window.open('', '', 'width=800,height=600');
-    if (!printWindow) return;
-
-    // 修复：使用 escapeHtml 防止 XSS
+    // 生成 HTML 内容（只保留日志，去掉了标题和时间戳）
     const logsHtml = serverLogs
-      .map(log => `<pre style="font-family: monospace; white-space: pre-wrap; margin-bottom: 8px;">${escapeHtml(log)}</pre>`)
-      .join('');
+      .map(
+        (log) =>
+          `<div style="margin-bottom: 16px; border-bottom: 1px dashed #ccc; padding-bottom: 8px;">
+             <pre style="font-family: monospace; white-space: pre-wrap; margin: 0; font-size: 12px; color: #000;">${escapeHtml(
+            log
+          )}</pre>
+           </div>`
+      )
+      .join("");
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${fileName}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; color: #000; background: #fff; }
-            h2 { border-bottom: 1px solid #ccc; padding-bottom: 10px; }
-          </style>
-        </head>
-        <body>
-          <h2>Travel Guides (Generated: ${timestamp})</h2>
-          <div>${logsHtml}</div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    // 写入隐藏的打印区域
+    const printArea = document.getElementById("print-area");
+    if (printArea) {
+      // 直接只放入日志内容
+      printArea.innerHTML = logsHtml;
 
-    printWindow.focus();
-    printWindow.print();
+      // 延迟打印
+      setTimeout(() => {
+        window.print();
+        
+        // 打印后清空
+        setTimeout(() => {
+           printArea.innerHTML = "";
+        }, 1000);
+      }, 300);
+    }
   }
+
 </script>
+
+
 
 <div class="min-h-screen bg-gradient-to-b from-sky-50 to-white text-slate-800">
   <header class="border-b border-sky-200 bg-white/80 backdrop-blur sticky top-0 z-10">
@@ -117,16 +107,16 @@
         >
           Generate Travel Guides
         </button>
-        
+
         <button
-          on:click={exportToPDF}
+          onclick={exportToPDF}
           class="rounded-lg border border-sky-200 px-3 py-2 text-sm text-sky-700 hover:bg-sky-50 transition"
         >
           Export Guides PDF
         </button>
 
         <button
-          on:click={clearLogs}
+          onclick={clearLogs}
           class="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition"
         >
           Clear Guides
@@ -142,7 +132,7 @@
           <span>📡</span> Travel Sender
         </h2>
 
-        <form id="plan-form" method="POST" action="?/callService" use:enhance class="space-y-4">
+        <form id="plan-form" onsubmit={callService} class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">City (Eng)</label>
             <input
@@ -182,10 +172,8 @@
         <pre
           class="flex-1 min-h-[120px] rounded-md bg-slate-900 text-emerald-400 text-xs p-3 overflow-auto font-mono"
         >
-          {#if form?.output}
-            {form.output}
-          {:else if form?.error}
-            <span class="text-red-400">{form.error}</span>
+          {#if senderResult}
+            {senderResult}
           {:else}
             ...
           {/if}
@@ -210,4 +198,7 @@
       </div>
     </section>
   </main>
+
+  <!-- 隐藏的打印区域，只有在打印时会显示 -->
+  <div id="print-area" style="display: none;"></div>
 </div>

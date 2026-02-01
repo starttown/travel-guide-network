@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+/* 打印样式配置 */
+@media print {
+  /* 1. 精确隐藏 Header 和 Main 区域（保留其他结构） */
+  .min-h-screen > header,
+  .min-h-screen > main {
+    display: none !important;
+  }
+
+  /* 2. 去除外层容器的背景色，防止打印出蓝色渐变背景 */
+  .min-h-screen {
+    background: white !important;
+    min-height: auto;
+  }
+
+  /* 3. 强制显示打印区域 */
+  #print-area {
+    display: block !important;
+    position: absolute; /* 绝对定位，脱离文档流 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: white !important;
+    color: black !important;
+    padding: 20px;
+    z-index: 9999;
+  }
+
+  /* 4. 强制背景色打印 */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
