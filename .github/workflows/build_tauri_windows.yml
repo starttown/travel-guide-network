@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies & build
         working-directory: ./frontend
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install
           pnpm tauri build --bundle msi
         shell: pwsh
 
