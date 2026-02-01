@@ -10,63 +10,57 @@ on:
 
 jobs:
   build:
-    name: Windows MSI
     runs-on: windows-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      # ✅ 关键1：匹配项目锁文件的 pnpm 版本（消除 WARN）
+      - name: Setup Node.js 20 + pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-
-      - name: Install pnpm (FIXED COMMAND)
-        run: npm install -g pnpm@8
-        shell: pwsh
+          cache: 'pnpm'
+          pnpm-version: '9'  # ⚠️ 根据 frontend/pnpm-lock.yaml 顶部注释调整！
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install dependencies & build
+      # ✅ 关键2：Tauri 2.x 正确参数（复数 bundles + 逗号分隔）
+      - name: Build Tauri MSI
         working-directory: ./frontend
         run: |
-          pnpm install
-          pnpm tauri build --bundle msi
+          pnpm install --frozen-lockfile
+          pnpm tauri build --bundles msi  # 修正：--bundle → --bundles（复数）
         shell: pwsh
 
-      - name: Rename MSI with clean version
+      - name: Rename MSI
         id: rename
         working-directory: ./frontend
         run: |
-          $ver = "${{ github.event.inputs.version }}".TrimStart('v')
-          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File | Select-Object -First 1
-          $newName = "app-$ver-setup.msi"
-          $newPath = Join-Path (Split-Path $msi) $newName
-          Move-Item $msi $newPath -Force
-          echo "msi_path=$newPath" >> $env:GITHUB_OUTPUT
-          echo "clean_version=$ver" >> $env:GITHUB_OUTPUT
+          $v = "${{ github.event.inputs.version }}".TrimStart('v')
+          $msi = (Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File)[0].FullName
+          $new = "travel-guide-network-$v-setup.msi"
+          Move-Item $msi $new -Force
+          echo "msi_path=$PWD\$new" >> $env:GITHUB_OUTPUT
+          echo "ver=$v" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: app-windows-installer
+          name: windows-installer
           path: ${{ steps.rename.outputs.msi_path }}
           retention-days: 30
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.rename.outputs.clean_version }}
-          name: Release v${{ steps.rename.outputs.clean_version }}
-          body: "Windows MSI installer for version ${{ steps.rename.outputs.clean_version }}"
+          tag_name: v${{ steps.rename.outputs.ver }}
+          name: Release v${{ steps.rename.outputs.ver }}
           files: ${{ steps.rename.outputs.msi_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
