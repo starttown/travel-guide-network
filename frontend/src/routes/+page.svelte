@@ -134,8 +134,9 @@
 
         <form id="plan-form" onsubmit={callService} class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">City (Eng)</label>
+            <label for="city" class="block text-sm font-medium text-slate-700 mb-1">City (Eng)</label>
             <input
+              id="city"
               name="city"
               type="text"
               bind:value={city}
@@ -146,9 +147,10 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Date Offset (days)</label>
+            <label for="date" class="block text-sm font-medium text-slate-700 mb-1">Date Offset (days)</label>
             <div class="flex items-center gap-2">
               <input
+                id="date"
                 name="date"
                 type="number"
                 bind:value={dateOffset}
