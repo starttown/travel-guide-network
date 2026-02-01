@@ -45,8 +45,6 @@ graph LR
 - **Node.js 18+** (development only)
 - **pnpm**
   ```bash
-  corepack enable
-  # or
   npm install -g pnpm
   ```
 - **OpenAgents**
