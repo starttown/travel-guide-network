@@ -1,0 +1,58 @@
+name: Build Tauri Windows MSI
+
+on:
+  workflow_dispatch:  # 仅允许在 GitHub 网页端手动触发
+    inputs:
+      version:
+        description: '请输入版本号 (例如 v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 Node.js
+      # 你的 main.py 中检测了 Node 版本 >= 18，这里使用 20 比较稳妥
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # 3. 安装 Rust 工具链
+      # Tauri 前端打包的核心依赖
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # 4. 安装 pnpm
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      # 5. 安装前端依赖并构建
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: pnpm install
+
+      # 6. 执行 Tauri 构建命令
+      # 这会编译 Rust 代码并生成安装包
+      - name: Build Tauri App (MSI)
+        working-directory: ./frontend
+        env:
+          # 防止构建过程中的进度条干扰日志
+          CI: true
+        run: pnpm tauri build
+
+      # 7. 上传构建产物 (MSI)
+      - name: Upload MSI Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi-installer
+          # Tauri 默认的 MSI 输出路径
+          path: frontend/src-tauri/target/release/bundle/msi/*.msi
