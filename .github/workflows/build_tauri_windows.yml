@@ -10,14 +10,14 @@ on:
 
 jobs:
   build:
-    name: Windows MSI Build
-    runs-on: windows-2022
+    name: Windows MSI
+    runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -26,27 +26,33 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
+      - name: Install pnpm (FIXED COMMAND)
+        run: npm install -g pnpm@8
+        shell: pwsh
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install & Build
+      - name: Install dependencies & build
         working-directory: ./frontend
         run: |
           pnpm install --frozen-lockfile
           pnpm tauri build --bundle msi
         shell: pwsh
 
-      - name: Rename MSI with version
+      - name: Rename MSI with clean version
         id: rename
+        working-directory: ./frontend
         run: |
+          $ver = "${{ github.event.inputs.version }}".TrimStart('v')
           $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File | Select-Object -First 1
-          $newName = "app-v${{ github.event.inputs.version }}-setup.msi"
+          $newName = "app-$ver-setup.msi"
           $newPath = Join-Path (Split-Path $msi) $newName
           Move-Item $msi $newPath -Force
           echo "msi_path=$newPath" >> $env:GITHUB_OUTPUT
-        working-directory: ./frontend
+          echo "clean_version=$ver" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Upload Artifact
@@ -59,9 +65,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: Release v${{ github.event.inputs.version }}
-          body: "Windows MSI installer (built on ${{ runner.os }})"
+          tag_name: v${{ steps.rename.outputs.clean_version }}
+          name: Release v${{ steps.rename.outputs.clean_version }}
+          body: "Windows MSI installer for version ${{ steps.rename.outputs.clean_version }}"
           files: ${{ steps.rename.outputs.msi_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
