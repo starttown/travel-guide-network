@@ -21,10 +21,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # ✅ 彻底移除 cache: 'pnpm'（setup-node@v4 无法为 pnpm 生效）
 
-      - name: Install pnpm globally
-        run: npm install -g pnpm@9  # 显式安装，路径自动加入 PATH
+      - name: Install pnpm
+        run: npm install -g pnpm@9
         shell: pwsh
 
       - name: Setup Rust
@@ -32,35 +31,35 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Build Tauri MSI
+      - name: Build Tauri Application
         working-directory: ./frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm tauri build --bundles msi  # ✅ Tauri 2.x 正确参数（复数 bundles）
+          pnpm tauri build --bundles msi
         shell: pwsh
 
-      - name: Rename MSI
-        id: rename
+      - name: Locate Generated MSI
+        id: find_msi
         working-directory: ./frontend
         run: |
-          $v = "${{ github.event.inputs.version }}".TrimStart('v')
-          $msi = (Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File)[0].FullName
-          $new = "travel-guide-network-$v-setup.msi"
-          Move-Item $msi $new -Force
-          echo "msi_path=$PWD\$new" >> $env:GITHUB_OUTPUT
-          echo "ver=$v" >> $env:GITHUB_OUTPUT
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File | Select-Object -First 1
+          if (-not $msi) { throw "MSI file not found!" }
+          echo "msi_path=$($msi.FullName)" >> $env:GITHUB_OUTPUT
+          echo "msi_name=$($msi.Name)" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: ${{ steps.rename.outputs.msi_path }}
+          path: ${{ steps.find_msi.outputs.msi_path }}
           retention-days: 30
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.rename.outputs.ver }}
-          name: Release v${{ steps.rename.outputs.ver }}
-          files: ${{ steps.rename.outputs.msi_path }}
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          files: ${{ steps.find_msi.outputs.msi_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
