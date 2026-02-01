@@ -1,52 +1,33 @@
-; Travel Guide Network - 安装脚本
-; 文件位置：network/setup.iss
+; Travel Guide Network - 安装脚本 (位于 network 目录下)
+; 使用 Inno Setup Compiler 编译
 
 [Setup]
 AppName=Travel Guide Network
 AppVersion=1.0.0
-AppVerName=Travel Guide Network 1.0.0
-AppPublisher=starttown
-AppPublisherURL=https://github.com/starttown/travel-guide-network.git
-
-; 默认安装目录
 DefaultDirName={pf}\TravelGuideNetwork
-; 默认开始菜单组
 DefaultGroupName=Travel Guide Network
-
-; 输出配置
 OutputBaseFilename=TravelGuideNetwork-Setup
-OutputDir=.\Output
 Compression=lzma2
 SolidCompression=yes
-
-; 权限配置
+; 👇 关键修改：请求管理员权限安装
 PrivilegesRequired=admin
-
-; 卸载图标
+; 输出目录指定在 network 下的 Output 文件夹，方便查找
+OutputDir=.\Output
 UninstallDisplayIcon={app}\run_network.bat
 
-; 安装程序界面设置
-WizardStyle=modern
-DisableDirPage=no
-DisableProgramGroupPage=no
-
 [Files]
-; 打包当前目录 (network) 下的所有业务文件
-Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.log,Output,setup.iss"
+; 打包当前目录 (network) 下的所有文件
+Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.log,Output,installer.iss,run_network.bat"
 
-; 打包 python_runtime 目录（python_runtime 就在当前 network 目录下）
 Source: "python_runtime\*"; DestDir: "{app}\python_runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; 开始菜单快捷方式
-Name: "{group}\Travel Guide Network"; Filename: "{app}\run_network.bat"
-
-; 桌面快捷方式
-Name: "{commondesktop}\Travel Guide Network"; Filename: "{app}\run_network.bat"
+; 👇 关键修改：添加 Verb: runas 让双击快捷方式时也以管理员身份运行
+Name: "{group}\Travel Guide Network"; Filename: "{app}\run_network.bat"; 
+Name: "{commondesktop}\Travel Guide Network"; Filename: "{app}\run_network.bat"; 
 
 [Run]
-; 安装完成后可以选择是否运行程序
-Name: "{app}\run_network.bat"; Description: "启动 Travel Guide Network"; Flags: nowait postinstall skipifsilent
+; 安装完成后不自动启动
 
 [UninstallDelete]
 ; 卸载时清理
