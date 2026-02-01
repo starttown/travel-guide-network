@@ -17,26 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ 关键1：匹配项目锁文件的 pnpm 版本（消除 WARN）
-      - name: Setup Node.js 20 + pnpm
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-          pnpm-version: '9'  # ⚠️ 根据 frontend/pnpm-lock.yaml 顶部注释调整！
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          # ✅ 彻底移除 cache: 'pnpm'（setup-node@v4 无法为 pnpm 生效）
+
+      - name: Install pnpm globally
+        run: npm install -g pnpm@9  # 显式安装，路径自动加入 PATH
+        shell: pwsh
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # ✅ 关键2：Tauri 2.x 正确参数（复数 bundles + 逗号分隔）
       - name: Build Tauri MSI
         working-directory: ./frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm tauri build --bundles msi  # 修正：--bundle → --bundles（复数）
+          pnpm tauri build --bundles msi  # ✅ Tauri 2.x 正确参数（复数 bundles）
         shell: pwsh
 
       - name: Rename MSI
