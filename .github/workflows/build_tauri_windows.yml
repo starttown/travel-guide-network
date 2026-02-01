@@ -1,59 +1,67 @@
-name: Build Tauri Windows MSI
+name: Build Windows MSI
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: '请输入版本号 (例如 v1.0.0)'
+        description: 'Release version (e.g., 1.2.0)'
         required: true
-        default: 'v1.0.0'
+        default: '0.1.0'
 
 jobs:
-  build-and-release:
-    runs-on: windows-latest
+  build:
+    name: Windows MSI Build
+    runs-on: windows-2022
 
     steps:
-      # 1. 检出代码
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 2. 安装 Node.js 并自动配置 pnpm (修改点：集成了 pnpm 安装)
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
-          package-manager: 'pnpm' # 直接让 setup-node 处理 pnpm
 
-      # 3. 安装 Rust 工具链
-      - name: Setup Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
-      # 4. [新增] 动态修改版本号
-      # 注意：这里假设是 Tauri v2，如果是 v1 可能需要修改 tauri.conf.json
-      # 下面以修改 tauri.conf.json 的 version 字段为例
-      - name: Update App Version
+      - name: Install & Build
         working-directory: ./frontend
         run: |
-          # 使用 Node.js 脚本修改 tauri.conf.json 中的版本
-          node -e "const fs = require('fs'); const path = 'src-tauri/tauri.conf.json'; const config = JSON.parse(fs.readFileSync(path, 'utf-8')); config.package.version = '${{ github.event.inputs.version }}'.replace('v', ''); fs.writeFileSync(path, JSON.stringify(config, null, 2));"
+          pnpm install --frozen-lockfile
+          pnpm tauri build --bundle msi
+        shell: pwsh
 
-      # 5. 安装前端依赖
-      - name: Install frontend dependencies
+      - name: Rename MSI with version
+        id: rename
+        run: |
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File | Select-Object -First 1
+          $newName = "app-v${{ github.event.inputs.version }}-setup.msi"
+          $newPath = Join-Path (Split-Path $msi) $newName
+          Move-Item $msi $newPath -Force
+          echo "msi_path=$newPath" >> $env:GITHUB_OUTPUT
         working-directory: ./frontend
-        run: pnpm install
+        shell: pwsh
 
-      # 6. 执行 Tauri 构建
-      - name: Build Tauri App (MSI)
-        working-directory: ./frontend
-        env:
-          CI: true
-        run: pnpm tauri build
-
-      # 7. 上传构建产物
-      - name: Upload MSI Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-msi-installer
-          path: frontend/src-tauri/target/release/bundle/msi/*.msi
+          name: app-windows-installer
+          path: ${{ steps.rename.outputs.msi_path }}
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          body: "Windows MSI installer (built on ${{ runner.os }})"
+          files: ${{ steps.rename.outputs.msi_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
