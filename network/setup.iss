@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Travel Guide Network
-AppVerName=v1
+AppVersion=v1
 DefaultDirName={pf}\TravelGuideNetwork
 DefaultGroupName=Travel Guide Network
 OutputBaseFilename=TravelGuideNetwork-Setup
