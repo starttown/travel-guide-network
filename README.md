@@ -1,4 +1,5 @@
 # Travel-Guide-Network
+Video:https://www.bilibili.com/video/BV1JfFKzTEdg/?vd_source=eb3f3277e676e4e60b5000d6466252b2
 A full-stack intelligent travel recommendation system built with **OpenAgents**, **Tauri**, and **Python**. Four Hogwarts-style AI agents analyze weather data and provide distinct travel advice through a modern desktop application.
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
