@@ -1,4 +1,4 @@
-name: Build Windows Python Package
+name: Build Windows Package
 
 on:
   workflow_dispatch:
@@ -17,29 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Inno Setup
-        run: choco install innosetup -y
-
-      - name: Install Python dependencies
-        run: |
-          cd network
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Create portable Python environment
-        run: |
-          $pythonExePath = python -c "import sys; print(sys.executable)"
-          $pythonRoot = Split-Path -Parent (Split-Path -Parent $pythonExePath)
-          
-          New-Item -ItemType Directory -Force -Path "network\python_runtime"
-          Copy-Item -Path "$pythonRoot\*" -Destination "network\python_runtime" -Recurse -Force -Exclude @("*.pyc", "__pycache__", "*.chm")
-        shell: pwsh
 
       - name: Build Inno Setup installer
         run: iscc "network\setup.iss"
