@@ -43,7 +43,7 @@ graph LR
 | HTTP Server | `tiny_http` (Rust) |
 | HTTP Client | `reqwest` (Rust) |
 ## Prerequisites
-- **Python 3.8+**
+- **Python 3.10+ (recommended: Python 3.11 or 3.12)**
 - **Rust 1.70+** (for Tauri)
 - **Node.js 18+** (development only)
 - **pnpm**
