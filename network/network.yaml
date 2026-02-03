@@ -9,7 +9,6 @@ network:
       port: 8700
       serve_studio: false
       serve_mcp: true
-      # 注意：已移除 serve_a2a，因为推荐使用 gRPC 进行 A2A 通信，且官方 demo 也是如此配置
   - type: grpc
     config:
       port: 8600
@@ -50,10 +49,8 @@ network:
         - communicate_with_users
       agents:
       - weather-connector
-    # 按照官方 Demo 风格，将 students 改名为 workers
     workers:
       description: Worker agents that execute research tasks
-      # 注意：这里保留了你 agents 中配置的密码哈希 (coordinators 的 hash)，而不是官方 worker 的 hash
       password_hash: bf24385098410391a81d92b2de72d3a2946d24f42ee387e51004a868281a2408
       metadata:
         permissions:

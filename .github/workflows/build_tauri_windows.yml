@@ -1,0 +1,65 @@
+name: Build Windows MSI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.2.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+        shell: pwsh
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Tauri Application
+        working-directory: ./frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build --bundles msi
+        shell: pwsh
+
+      - name: Locate Generated MSI
+        id: find_msi
+        working-directory: ./frontend
+        run: |
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -File | Select-Object -First 1
+          if (-not $msi) { throw "MSI file not found!" }
+          echo "msi_path=$($msi.FullName)" >> $env:GITHUB_OUTPUT
+          echo "msi_name=$($msi.Name)" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ steps.find_msi.outputs.msi_path }}
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          files: ${{ steps.find_msi.outputs.msi_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

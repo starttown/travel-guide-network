@@ -6,6 +6,7 @@ import time
 import platform
 from pathlib import Path
 import socket
+from shutil import which
 
 # ================= UTF-8 强制设置 =================
 if hasattr(sys.stdout, "reconfigure"):
@@ -22,7 +23,6 @@ ROOT_DIR = Path(__file__).parent.resolve()
 NETWORK_DIR = ROOT_DIR / "network"
 FRONTEND_DIR = ROOT_DIR / "frontend"
 BACKEND_PORT = 8888
-LOCAL_NODE_DIR = ROOT_DIR / "nodejs"  # 定义本地 Node.js 目录
 
 if not NETWORK_DIR.exists():
     raise FileNotFoundError(f"后端目录不存在: {NETWORK_DIR}")
@@ -53,24 +53,22 @@ class ProcessManager:
                 raise TimeoutError(f"等待后端启动超时（{timeout}秒），端口 {port} 未开启")
             time.sleep(1)
 
-    def _run_command(self, name, cmd, cwd, shell=False):
+    def _run_command(self, name, cmd, cwd):
         """启动子进程并实时输出日志"""
         print(f"🚀 [{name}] 正在启动...")
         print(f"    目录: {cwd}")
-        
-        is_windows = platform.system() == "Windows"
-        # Windows 下默认使用 shell，否则无法找到 .cmd 文件或正确处理路径
-        use_shell = shell or is_windows
+        print(f"    命令: {' '.join(cmd)}")
 
         try:
+            # Windows 下如果命令是 pnpm.cmd，建议不使用 shell=True，或者显式指定
+            # 这里统一使用 subprocess.Popen，不使用 shell=True 以减少路径问题
             proc = subprocess.Popen(
                 cmd,
                 cwd=str(cwd),
                 env=ENV,
-                shell=use_shell,
                 stdout=sys.stdout,
                 stderr=sys.stderr,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if is_windows else 0
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0
             )
             self.processes[name] = proc
             print(f"✅ [{name}] 进程已启动 (PID: {proc.pid})\n")
@@ -94,27 +92,34 @@ class ProcessManager:
             self._wait_for_port(wait_port)
 
     def start_frontend(self):
-        """启动前端"""
-        is_windows = platform.system() == "Windows"
-        cmd = []
-
-        if is_windows:
-            # Windows: 使用相对路径下的 pnpm
-            pnpm_path = LOCAL_NODE_DIR / "pnpm.cmd"
+        """启动前端 (Tauri)"""
+        # 检查 Node.js 版本
+        try:
+            result = subprocess.run(["node", "--version"], capture_output=True, text=True)
+            node_version_str = result.stdout.strip()
+            # node --version 输出格式类似 v18.19.0
+            major_version = int(node_version_str[1:].split('.')[0])
             
-            if not pnpm_path.exists():
-                print(f"❌ [Frontend] 错误：找不到本地 pnpm ({pnpm_path})")
-                print("   请确保打包时已包含 nodejs 目录并安装了 pnpm。")
+            if major_version < 18:
+                print(f"❌ [Frontend] 错误：检测到 Node.js 版本过低 ({node_version_str})。")
+                print("   请安装 Node.js 18 或更高版本。")
                 sys.exit(1)
-            
-            cmd = [str(pnpm_path.resolve()), "dev", "--host", "--open"]
-            print(f"🔍 [Frontend] 使用本地环境: {cmd[0]}")
-        else:
-            # Ubuntu/Linux: 直接使用系统的 pnpm
-            cmd = ["pnpm", "dev", "--host", "--open"]
-            print(f"🔍 [Frontend] 使用系统环境 pnpm")
+            print(f"✅ [Frontend] 检测到 Node.js 版本: {node_version_str}")
+        except FileNotFoundError:
+            print("❌ [Frontend] 错误：未找到 'node' 命令。")
+            print("   请确保已安装 Node.js 18+ 并添加到系统环境变量 PATH 中。")
+            sys.exit(1)
+        except Exception as e:
+            print(f"⚠️  [Frontend] 警告：无法检测 Node.js 版本 ({e})。继续尝试启动...")
 
-        # _run_command 内部会自动处理 Windows 的 shell=True 逻辑
+        # 检查 pnpm 是否存在
+        pnpm_exe = "pnpm.cmd" if platform.system() == "Windows" else "pnpm"
+        if not which(pnpm_exe):
+            print(f"❌ [Frontend] 错误：未找到 '{pnpm_exe}' 命令。")
+            print("   请运行 'corepack enable' 或 'npm install -g pnpm' 来安装 pnpm。")
+            sys.exit(1)
+
+        cmd = [pnpm_exe, "tauri", "dev"]
         self._run_command("Frontend", cmd, cwd=FRONTEND_DIR)
 
     def stop_all(self):

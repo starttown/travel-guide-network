@@ -1,97 +1,62 @@
-# TravelGuide Frontend Dashboard
-The web-based user interface for the TravelGuide Multi-Agent System. Built with **SvelteKit** and **Tailwind CSS**, this dashboard provides real-time monitoring and control over the backend Python agents.
-## 📋 Project Overview
-This application serves as the control center for the travel recommendation system. It allows users to submit travel requests and view real-time logs streamed directly from the Python backend agents via Server-Sent Events (SSE).
-**Key Integration:** The Node.js server (running this SvelteKit app) also hosts an internal Log Server on port `9999` that receives updates from the Python backend and forwards them to the browser.
+# Travel-Guide-Network
+A cross-platform desktop application built with **Tauri** + **SvelteKit** + **Tailwind CSS**. This app serves as the frontend interface, interacting with a Python backend service to generate and manage travel guides.
+It integrates real-time log streaming, custom print-to-PDF export, and cross-language communication capabilities.
 ## ✨ Features
--   **📡 Travel Request Form**: Submit city and date parameters to trigger the backend workflow.
--   **📩 Real-time Logs**: View agent output (Gryffindor, Slytherin, Ravenclaw, Hufflepuff) instantly as they are generated via SSE.
--   **🛡️ XSS Protection**: Built-in HTML sanitization to safely display logs and prevent injection attacks.
--   **📄 PDF Export**: Export the generated travel guides to PDF directly from the browser.
--   **🎨 Modern UI**: Responsive design built with Tailwind CSS.
--   **⚡ Optimistic UI**: Fast interactions using SvelteKit form actions.
+- 🚀 **Cross-Platform Desktop App**: Built on Rust Tauri for a small footprint and high performance.
+- 🎨 **Modern UI**: Designed with Svelte 5 (Runes) and Tailwind CSS for a clean, beautiful interface.
+- 📡 **Dual-Channel Communication**:
+  - **Request Channel**: The frontend calls Rust via Tauri Commands, which then requests the Python backend (port 8888) to generate guides.
+  - **Log Channel**: Rust runs a built-in HTTP server (port 9999) to receive real-time log streams from the Python backend and pushes them to the frontend via WebSocket.
+- 📄 **PDF Export**: Clean log printing/PDF export functionality using CSS Print Media Query and DOM manipulation.
+- 🔧 **Developer Friendly**: Fully configured for hot reloading and build processes.
 ## 🛠️ Tech Stack
--   **Framework**: [SvelteKit](https://kit.svelte.dev/) (with SSR disabled for client-side streaming)
--   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
--   **Build Tool**: Vite
--   **Streaming**: Server-Sent Events (SSE) via custom Vite plugin
--   **Package Manager**: [pnpm](https://pnpm.io/)
--   **Backend Dependency**: Python Weather Connector (must be running on `localhost:8888`)
-## 🚀 Getting Started
-### Prerequisites
-1.  **Node.js**: Version 16+ or 18+ installed.
-2.  **pnpm**: Fast, disk space efficient package manager.
-    ```bash
-    npm install -g pnpm
-    # or enable corepack: corepack enable
-    ```
-3.  **Python Backend**: The `weather_connector.py` service must be running on `http://localhost:8888`.
-4.  **Network**: The application currently targets `localhost`. If deploying remotely, API URLs in `+page.server.ts` and Python scripts need adjustment.
-### Installation
-1.  Clone the repository and navigate to the frontend directory:
-    ```bash
-    cd /path/to/frontend
-    ```
-2.  Install dependencies using pnpm:
-    ```bash
-    pnpm install
-    ```
-### Development Mode
-Run the development server. By default, it runs on `http://localhost:5173`.
+- **Frontend**: SvelteKit, Svelte 5 (Runes), Tailwind CSS
+- **Backend**: Rust (Tauri)
+- **Network**: `tiny_http` (internal log server), `reqwest` (HTTP client)
+- **Inter-Process**: Tauri Events
+## 📋 Prerequisites
+Before running this project, ensure your development environment has the following tools installed:
+1. **Node.js** (v18 or higher recommended)
+2. **pnpm** (Package manager)
+3. **Rust** (and Cargo)
+4. **Python Backend Service**: The application relies on a Python backend API running on `localhost:8888`.
+## 🚀 Quick Start
+### 1. Install Dependencies
 ```bash
-pnpm dev --host --open
+pnpm install
 ```
-> **Note:** The development server automatically starts the **Internal Log Server** on port `9999`. Ensure no other service is using this port.
-
-## 📂 Project Structure
+### 2. Start Development Mode
+This command will automatically start the frontend dev server (default port 1420) and compile the Tauri app.
+```bash
+pnpm tauri dev
 ```
-.
-├── src/
-│   ├── routes/
-│   │   └── +page.svelte         # Main UI component (Form + Log Viewer)
-│   │   ├── +page.server.ts      # Server actions (Handle form submit -> Call Python)
-│   │   └── +server.ts           # SSE Endpoint (Stream logs to browser)
-│   ├── app.html                 # HTML template
-│   └── app.css                  # Tailwind imports
-├── static/                      # Static assets
-├── vite.config.ts               # Vite config + Custom Log Server Plugin
-├── svelte.config.js             # SvelteKit adapter config
-├── package.json                 # Project metadata
-└── pnpm-lock.yaml               # pnpm lockfile
+> **Note**: Please ensure the Python backend service is already running on `localhost:8888`, otherwise the "Generate Travel Guides" function will report an error.
+### 3. Build for Production
+```bash
+pnpm tauri build
 ```
-## 🏗️ Architecture & Data Flow
-This application utilizes a unique 3-way communication pattern:
-1.  **User Action**: User fills the form in `+page.svelte`.
-    *   Data is sent via POST to SvelteKit Server Action (`+page.server.ts`).
-2.  **Backend Trigger**: `+page.server.ts` forwards the request to Python Backend (`http://localhost:8888/generate`).
-3.  **Agent Processing**: Python backend delegates tasks to Agents.
-4.  **Log Relay**: Agents send results to the **Internal Log Server** embedded in this Node app (`http://localhost:9999/log`).
-    *   *Implementation:* This is handled by the custom `log-server-9999` plugin in `vite.config.ts`.
-5.  **Real-time Push**: The Log Server emits an event. The `+server.ts` SSE endpoint catches this event and pushes it to the browser.
-6.  **UI Update**: The browser (`+page.svelte`) receives the SSE message and updates the log list.
-## ⚙️ Configuration
-### Ports
--   **Frontend (Dev)**: `5173`
--   **Frontend (Prod)**: `3000` (or configured port)
--   **Internal Log Server**: `9999` (Hardcoded in `vite.config.ts`)
--   **Python Backend**: `8888` (Hardcoded in `+page.server.ts`)
-### Tailwind CSS
-Tailwind is configured via the Vite plugin. No additional config file (`tailwind.config.js`) is required as the default configuration is used.
-## 🔒 Security Features
--   **XSS Prevention**: The `escapeHtml` function in `+page.svelte` sanitizes all log data before rendering it to the DOM, mitigating Cross-Site Scripting risks from potentially malicious agent outputs.
--   **Input Validation**: Server-side validation in `+page.server.ts` ensures only valid data reaches the Python backend.
-## 🐛 Troubleshooting
-### "Connection refused" when submitting form
--   **Cause**: The Python backend (`weather_connector.py`) is not running.
--   **Fix**: Ensure `python launch.py all` or the specific connector script is running.
-### Logs not appearing
--   **Cause 1**: The Python `send_result.py` is pointing to the wrong URL. It must point to `http://localhost:9999/log`.
--   **Cause 2**: Port `9999` is blocked or occupied by another application.
--   **Fix**: Check the console where `pnpm dev` is running to ensure `🚀 [Log Server] 已启动监听端口 9999` appears.
-### PDF Export fails
--   **Cause**: Browser popup blocker.
--   **Fix**: Allow popups for this site.
-## 📄 License
-This project is open source and available under the [MIT License](https://choosealicense.com/licenses/mit/).
----
-**Developed with ❤️ using SvelteKit**
+The build artifacts will be located in the `src-tauri/target/release/bundle/` directory.
+## 🏗️ Project Architecture
+### Core Interaction Flow
+This project uses Rust as an intermediary layer to decouple the Svelte frontend from the Python backend:
+1. **Guide Generation Flow**:
+   - The user fills in the City and Date Offset in the UI.
+   - The frontend calls the Tauri Command `call_service`.
+   - Rust (`lib.rs`) uses `reqwest` to send a POST request to `http://localhost:8888/generate`.
+   - The result is returned to the frontend and displayed in the "Sender Result" area.
+2. **Log Streaming Flow**:
+   - When the Rust application starts, it automatically launches a `tiny_http` server on `127.0.0.1:9999`.
+   - While processing tasks, the Python backend POSTs logs to `http://127.0.0.1:9999/log`.
+   - Rust receives the logs and broadcasts them to the frontend using Tauri's `app.emit("log-line", ...)`.
+   - The frontend listens to the `log-line` event and updates the "Travel Guides" list in real-time.
+### Key File Breakdown
+- **`src-tauri/src/lib.rs`**:
+  - `call_service`: Handles frontend requests and forwards them to Python.
+  - `start_log_server_impl`: Internal HTTP server that receives external logs and pushes them to the frontend.
+- **`src/app.css`**:
+  - Defines `@media print` styles. During printing, it automatically hides the Header and Main areas, displaying only the content in `#print-area`, and forces background color printing.
+- **`src/routes/+page.svelte`** (Implied):
+  - Uses Svelte 5 Runes (`$state`) for state management.
+  - The `exportToPDF` function is responsible for sanitizing logs, injecting them into the DOM, and triggering the browser print dialog.
+## 📜 License
+MIT License

@@ -1,0 +1,46 @@
+name: Build Windows Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Inno Setup installer
+        run: iscc "network\setup.iss"
+        shell: pwsh
+
+      - name: Locate Generated Installer
+        id: find_installer
+        run: |
+          $exe = Get-ChildItem "network\Output\*.exe" -File | Select-Object -First 1
+          if (-not $exe) { throw "Installer file not found!" }
+          echo "installer_path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ steps.find_installer.outputs.installer_path }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          files: ${{ steps.find_installer.outputs.installer_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
